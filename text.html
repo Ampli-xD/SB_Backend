@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Group Chat</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Group Chat</h1>
+
+    <input type="text" id="username" placeholder="Enter your username">
+    <input type="text" id="room" placeholder="Enter your room">
+    <button id="join">Join room</button>
+
+
+    <div id="chatbox"></div>
+
+    <input type="text" id="message" placeholder="Type your message">
+    <button id="send">Send</button>
+
+    
+
+    <script>
+        const socket = io('http//localhost:5000/');
+
+        const usernameInput = document.getElementById('username');
+        const roomInput = document.getElementById('room');
+        const joinButton = document.getElementById('join');
+        const chatbox = document.getElementById('chatbox');
+        const messageInput = document.getElementById('message');
+        const sendButton = document.getElementById('send');
+
+        joinButton.addEventListener('click', () => {
+            const username = usernameInput.value;
+            socket.on('join', {username, room} => {
+                messages.innerHTML += '<p>Connected to WebSocket</p>';
+            }); // Join the group
+        });
+
+        sendButton.addEventListener('click', () => {
+            const message = messageInput.value;
+            socket.emit('message', message); // Send the message
+            messageInput.value = '';
+        });
+
+        socket.on('message', (message) => {
+            const messageElement = document.createElement('p');
+            messageElement.textContent = message;
+            chatbox.appendChild(messageElement);
+        });
+    </script>
+</body>
+</html>
