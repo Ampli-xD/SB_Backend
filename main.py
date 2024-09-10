@@ -144,53 +144,33 @@ def export_room():
     
     return jsonify(room_data)
 
-@socketio.on('message')
-def handle_message(data):
-    print('Received message:', data)
-    # Receives: { type: 'chat_message', content: string, roomCode: string }
-    if data['type'] == 'chat_message':
-        room_code = data['roomCode']
-        content = data['content']
-        
-        if room_code not in messages:
-            messages[room_code] = []
-        
-        new_message = {
-            "id": uuid.uuid4().hex,
-            "content": content,
-            "sender": "User",  # Replace with actual user identification
-            "timestamp": datetime.now().isoformat()
-        }
-        messages[room_code].append(new_message)
-        
-        # Emit the new message to all clients in the room
-        print('emitting message')
-        print(new_message)
-        emit('chat_message', new_message, room=room_code)
-
 @socketio.on('chat_message')
-def handle_message(data):
-        print('Received message:', data)
-    # Receives: { type: 'chat_message', content: string, roomCode: string }
-    # if data[0] == 'chat_message':
-        room_code = data['roomCode']
-        content = data['content']
-        
-        if room_code not in messages:
-            messages[room_code] = []
-        
-        new_message = {
-            "id": uuid.uuid4().hex,
-            "content": content,
-            "sender": "User",  # Replace with actual user identification
-            "timestamp": datetime.now().isoformat()
-        }
-        messages[room_code].append(new_message)
-        
-        # Emit the new message to all clients in the room
-        print('emitting message')
-        print(new_message)
-        emit('chat_message', new_message, room=room_code)
+def handle_chat_message(data):
+    print('Received message:', data)
+    
+    room_code = data.get('roomCode')
+    content = data.get('content')
+
+    if not room_code or not content:
+        print('Error: Missing roomCode or content')
+        return
+
+    # Add message to the room's message list
+    if room_code not in messages:
+        messages[room_code] = []
+
+    new_message = {
+        "id": uuid.uuid4().hex,
+        "content": content,
+        "sender": "User",  # You can replace this with actual user identification
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    messages[room_code].append(new_message)
+
+    # Emit the new message to all clients in the room
+    print(f'Emitting message to room {room_code}:', new_message)
+    emit('chat_message', new_message, room=room_code)
 
 @socketio.on('join_room')
 def on_join_room(data):
