@@ -146,6 +146,7 @@ def export_room():
 
 @socketio.on('message')
 def handle_message(data):
+    print('Received message:', data)
     # Receives: { type: 'chat_message', content: string, roomCode: string }
     if data['type'] == 'chat_message':
         room_code = data['roomCode']
@@ -169,6 +170,7 @@ def handle_message(data):
 
 @socketio.on('chat_message')
 def handle_message(data):
+        print('Received message:', data)
     # Receives: { type: 'chat_message', content: string, roomCode: string }
     # if data[0] == 'chat_message':
         room_code = data['roomCode']
