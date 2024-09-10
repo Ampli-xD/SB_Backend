@@ -146,7 +146,7 @@ def export_room():
 @socketio.on('message')
 def handle_message(data):
     # Receives: { type: 'chat_message', content: string, roomCode: string }
-    if data[0] == 'chat_message':
+    if data[type] == 'chat_message':
         room_code = data['roomCode']
         content = data['content']
         
@@ -188,10 +188,6 @@ def handle_message(data):
         print('emitting message')
         print(new_message)
         emit('chat_message', new_message, room=room_code)
-
-@socketio.on('',namespace='ws/chat/')
-def handle_message(data):
-    print('Received message:', data)
 
 @socketio.on('join_room',namespace='/ws/chat/')
 def on_join_room(data):
