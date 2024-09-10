@@ -1,3 +1,4 @@
+import uuid
 from flask import Flask, request, jsonify
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_cors import CORS
@@ -146,7 +147,7 @@ def export_room():
 @socketio.on('message')
 def handle_message(data):
     # Receives: { type: 'chat_message', content: string, roomCode: string }
-    if data[type] == 'chat_message':
+    if data['type'] == 'chat_message':
         room_code = data['roomCode']
         content = data['content']
         
@@ -154,7 +155,7 @@ def handle_message(data):
             messages[room_code] = []
         
         new_message = {
-            "id": room_code,
+            "id": uuid.uuid4().hex,
             "content": content,
             "sender": "User",  # Replace with actual user identification
             "timestamp": datetime.now().isoformat()
@@ -177,7 +178,7 @@ def handle_message(data):
             messages[room_code] = []
         
         new_message = {
-            "id": room_code,
+            "id": uuid.uuid4().hex,
             "content": content,
             "sender": "User",  # Replace with actual user identification
             "timestamp": datetime.now().isoformat()
@@ -189,7 +190,7 @@ def handle_message(data):
         print(new_message)
         emit('chat_message', new_message, room=room_code)
 
-@socketio.on('join_room',namespace='/ws/chat/')
+@socketio.on('join_room')
 def on_join_room(data):
     # Receives: { roomCode: string }
     print(f"User {request.sid} joined room: {room_code}")
@@ -202,7 +203,7 @@ def on_join_room(data):
     emit('online_users_update', online_users[room_code], room=room_code)
     emit('update_online_count', len(online_users[room_code]), room=room_code)
 
-@socketio.on('leave_room',namespace='/ws/chat/')
+@socketio.on('leave_room')
 def on_leave_room(data):
     # Receives: { roomCode: string }
     room_code = data['roomCode']
@@ -212,7 +213,7 @@ def on_leave_room(data):
         emit('online_users_update', online_users[room_code], room=room_code)
         emit('update_online_count', len(online_users[room_code]), room=room_code)
 
-@socketio.on('disconnect',namespace='/ws/chat/')
+@socketio.on('disconnect')
 def on_disconnect():
     for room_code, users in online_users.items():
         users = [user for user in users if user['id'] != request.sid]
