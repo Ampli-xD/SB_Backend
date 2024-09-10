@@ -235,4 +235,4 @@ def validate_keys(gemini_key, pinecone_key):
     # Implement your key validation logic here
     return True  # Placeholder, always returns True
 if __name__ == '__main__':
-    socketio.run(app, allow_unsafe_werkzeug=True)
+    socketio.run(app, allow_unsafe_werkzeug=True, host='0.0.0.0', port=5000)
