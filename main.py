@@ -175,7 +175,7 @@ def handle_chat_message(data):
 @socketio.on('join_room')
 def on_join_room(data):
     # Receives: { roomCode: string }
-    room_code = data[roomCode]
+    room_code = data['roomCode']
     print(f"User {request.sid} joined room: {room_code}")
     room_code = data['roomCode']
     join_room(room_code)
