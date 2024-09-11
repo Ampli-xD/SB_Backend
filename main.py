@@ -89,6 +89,7 @@ def send_message():
 
 @app.route('/api/online-users', methods=['GET'])
 def get_online_users():
+    print("online user requested")
     # Receives: roomCode as query parameter
     # Returns: [{ id: string, name: string }]
     room_code = request.args.get('roomCode')
