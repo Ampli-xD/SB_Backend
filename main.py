@@ -43,8 +43,8 @@ def create_room():
 
     room_code = generate_alphanumeric_string()
     print(room_code, room_name, gemini_key, pinecone_key)
-    print(f"Room has been created by: {user_name} with sid {request.sid}")
-    rooms[room_code] = {"name": room_name, "gemini_key": gemini_key, "pinecone_key": pinecone_key, "users":[user_name, request.sid]}
+    print(f"Room has been created by: {user_name}")
+    rooms[room_code] = {"name": room_name, "gemini_key": gemini_key, "pinecone_key": pinecone_key, "users":[user_name]}
     return jsonify({"roomCode": room_code})
 
 @app.route('/api/rooms/join', methods=['POST'])
@@ -57,9 +57,8 @@ def join_room_api():
 
     if room_code not in rooms:
         return jsonify({"message": "Room not found"}), 404
-    
-    rooms[room_code]["users"].append([user_name, request.sid])
-    print(f"Room has been joined by: {user_name} with sid {request.sid}")
+    rooms[room_code]["users"].append([user_name])
+    print(f"Room has been joined by: {user_name}")
     return jsonify({"roomName": rooms[room_code]["name"]})
 
 @app.route('/api/messages/', methods=['GET'])
@@ -157,6 +156,7 @@ def handle_chat_message(data):
     
     room_code = data.get('roomCode')
     content = data.get('content')
+    userName = data.get('userName')
 
     if not room_code or not content:
         print('Error: Missing roomCode or content')
@@ -165,17 +165,11 @@ def handle_chat_message(data):
     # Add message to the room's message list
     if room_code not in messages:
         messages[room_code] = []
-    
-    username = None
-    for user in rooms[room_code]['users']:
-        if user[1] == request.sid:
-            username = user[0]
-            break
 
     new_message = {
         "id": uuid.uuid4().hex,
         "content": content,
-        "sender": username,  # You can replace this with actual user identification
+        "sender": userName,  # You can replace this with actual user identification
         "timestamp": datetime.now().isoformat()
     }
     
