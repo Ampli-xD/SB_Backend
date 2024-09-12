@@ -24,7 +24,7 @@ def generate_alphanumeric_string():
     group1 = generate_group()
     group2 = generate_group()
     group3 = generate_group()
-    return f"{group1}-{group2}-{group3}"
+    return f"{group1}{group2}{group3}"
 
 @app.route('/api/rooms/create', methods=['POST'])
 def create_room():
