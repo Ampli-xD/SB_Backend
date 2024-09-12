@@ -43,7 +43,8 @@ def create_room():
 
     room_code = generate_alphanumeric_string()
     print(room_code, room_name, gemini_key, pinecone_key)
-    rooms[room_code] = {"name": room_name, "gemini_key": gemini_key, "pinecone_key": pinecone_key, "users":[user_name]}
+    print(f"Room has been created by: {user_name} with sid {request.sid}")
+    rooms[room_code] = {"name": room_name, "gemini_key": gemini_key, "pinecone_key": pinecone_key, "users":[user_name, request.sid]}
     return jsonify({"roomCode": room_code})
 
 @app.route('/api/rooms/join', methods=['POST'])
@@ -57,7 +58,8 @@ def join_room_api():
     if room_code not in rooms:
         return jsonify({"message": "Room not found"}), 404
     
-    rooms[roomCode]["users"].append(user_name)
+    rooms[room_code]["users"].append([user_name, request.sid])
+    print(f"Room has been joined by: {user_name} with sid {request.sid}")
     return jsonify({"roomName": rooms[room_code]["name"]})
 
 @app.route('/api/messages/', methods=['GET'])
@@ -67,29 +69,29 @@ def get_messages():
     room_code = request.args.get('roomCode')
     return jsonify(messages.get(room_code, []))
 
-@app.route('/api/send-message', methods=['POST'])
-def send_message():
-    # Receives: { roomCode: string, content: string }
-    # Returns: { success: boolean }
-    data = request.json
-    room_code = data.get('roomCode')
-    content = data.get('content')
+# @app.route('/api/send-message', methods=['POST'])
+# def send_message():
+#     # Receives: { roomCode: string, content: string }
+#     # Returns: { success: boolean }
+#     data = request.json
+#     room_code = data.get('roomCode')
+#     content = data.get('content')
     
-    if room_code not in messages:
-        messages[room_code] = []
+#     if room_code not in messages:
+#         messages[room_code] = []
     
-    new_message = {
-        "id": generate_alphanumeric_string(),
-        "content": content,
-        "sender": "User",  # Replace with actual user identification
-        "timestamp": datetime.now().isoformat()
-    }
-    messages[room_code].append(new_message)
+#     new_message = {
+#         "id": generate_alphanumeric_string(),
+#         "content": content,
+#         "sender": "User",  # Replace with actual user identification
+#         "timestamp": datetime.now().isoformat()
+#     }
+#     messages[room_code].append(new_message)
     
-    # Emit the new message to all clients in the room
-    socketio.emit('chat_message', new_message, room=room_code)
+#     # Emit the new message to all clients in the room
+#     socketio.emit('chat_message', new_message, room=room_code)
     
-    return jsonify({"success": True})
+#     return jsonify({"success": True})
 
 @app.route('/api/online-users', methods=['GET'])
 def get_online_users():
@@ -163,11 +165,17 @@ def handle_chat_message(data):
     # Add message to the room's message list
     if room_code not in messages:
         messages[room_code] = []
+    
+    username = None
+    for user in rooms[room_code]['users']:
+        if user[1] == request.sid:
+            username = user[0]
+            break
 
     new_message = {
         "id": uuid.uuid4().hex,
         "content": content,
-        "sender": "User",  # You can replace this with actual user identification
+        "sender": username,  # You can replace this with actual user identification
         "timestamp": datetime.now().isoformat()
     }
     
@@ -186,6 +194,8 @@ def on_join_room(data):
     join_room(room_code)
     if room_code not in online_users:
         online_users[room_code] = []
+    
+        
     user = {"id": request.sid, "name": "User"}  # Replace with actual user name
     online_users[room_code].append(user)
     emit('online_users_update', online_users[room_code], room=room_code)
