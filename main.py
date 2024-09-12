@@ -61,7 +61,7 @@ def join_room_api():
     print(f"Room has been joined by: {user_name}")
     return jsonify({"roomName": rooms[room_code]["name"]})
 
-@app.route('/api/rooms/', methods=['POST'])
+@app.route('/api/rooms/name', methods=['POST'])
 def get_name():
     data = request.json
     room_code = data.get('roomCode')
