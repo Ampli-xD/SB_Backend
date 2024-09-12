@@ -20,20 +20,22 @@ import string
 def generate_alphanumeric_string():
     characters = string.ascii_lowercase + string.digits
     def generate_group():
-        return ''.join(random.choices(characters, k=3))
+        return ''.join(random.choices(characters, k=2))
     group1 = generate_group()
     group2 = generate_group()
     group3 = generate_group()
-    return f"{group1}{group2}{group3}"
+    return f"{group1}-{group2}-{group3}"
 
 @app.route('/api/rooms/create', methods=['POST'])
 def create_room():
     # Receives: { roomName: string, geminiKey: string, pineconeKey: string }
     # Returns: { roomCode: string } or { message: string } on error
     data = request.json
+    user_name = data.get('userName')
     room_name = data.get('roomName')
     gemini_key = data.get('geminiKey')
     pinecone_key = data.get('pineconeKey')
+    
     
     # Validate keys (implement your validation logic here)
     if not validate_keys(gemini_key, pinecone_key):
@@ -41,7 +43,7 @@ def create_room():
 
     room_code = generate_alphanumeric_string()
     print(room_code, room_name, gemini_key, pinecone_key)
-    rooms[room_code] = {"name": room_name, "gemini_key": gemini_key, "pinecone_key": pinecone_key}
+    rooms[room_code] = {"name": room_name, "gemini_key": gemini_key, "pinecone_key": pinecone_key, "users":[user_name]}
     return jsonify({"roomCode": room_code})
 
 @app.route('/api/rooms/join', methods=['POST'])
@@ -49,11 +51,13 @@ def join_room_api():
     # Receives: { roomCode: string }
     # Returns: { roomName: string } or { message: string } on error
     data = request.json
+    user_name = data.get('userName')
     room_code = data.get('roomCode')
 
     if room_code not in rooms:
         return jsonify({"message": "Room not found"}), 404
-
+    
+    rooms[roomCode]["users"].append(user_name)
     return jsonify({"roomName": rooms[room_code]["name"]})
 
 @app.route('/api/messages/', methods=['GET'])
