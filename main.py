@@ -199,8 +199,8 @@ def on_join_room(data):
         
     user = {"id": request.sid, "name": "User"}  # Replace with actual user name
     online_users[room_code].append(user)
-    emit('online_users_update', online_users[room_code], room=room_code)
-    emit('update_online_count', len(online_users[room_code]), room=room_code)
+    emit('online_users_update', rooms[room_code]['users'], room=room_code)
+    emit('update_online_count', len(rooms[room_code]['users']), room=room_code)
 
 @socketio.on('leave_room')
 def on_leave_room(data):
