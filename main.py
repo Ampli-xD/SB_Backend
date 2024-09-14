@@ -173,7 +173,7 @@ def on_join_room(data):
         online_users_table.insert({"roomCode": room_code, "users": []})
     new_message = {
         "id": uuid.uuid4().hex,
-        "content": f"{user_name}has entered the room.",
+        "content": f"{user_name} has entered the room.",
         "sender": "System",
         "timestamp": datetime.now().isoformat(),
         "roomCode": room_code
