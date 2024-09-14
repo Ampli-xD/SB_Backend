@@ -28,12 +28,12 @@ class CommandProcessor:
         
         online_users_list = ', '.join(user['name'] for user in self.online_users) if self.online_users else 'No users online'
         
-        info_text = (f"<h2>Room Information</h2>",
-                    f"<p><b>Name:</b> {room_name}</p>",
-                    f"<p><b>Code:</b> {room_code}</p>",
-                    f"<p><b>Creator:</b> {creator}</p>",
-                    f"<p><b>Creation Time:</b> {creation_time}</p>",
-                    f"<p><b>Online Users:</b> {online_users_list}</p>")
+        info_text = (f"b Room Information ",
+                    f"b Name: br {room_name}",
+                    f"b Code: br {room_code}",
+                    f"b Creator: br {creator}",
+                    f"b Creation Time: br {creation_time}",
+                    f"b Online Users: br {online_users_list}")
         
         formatted_info = self.html_complexer.convert_to_html(info_text)
         return formatted_info
