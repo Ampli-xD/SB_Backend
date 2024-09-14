@@ -171,7 +171,14 @@ def on_join_room(data):
     join_room(room_code)
     if not online_users_table.get(Query().roomCode == room_code):
         online_users_table.insert({"roomCode": room_code, "users": []})
-    emit('chat_message', f'{user_name} has entered the room.', to=room_code)
+    new_message = {
+        "id": uuid.uuid4().hex,
+        "content": f"{user_name}has entered the room.",
+        "sender": "System",
+        "timestamp": datetime.now().isoformat(),
+        "roomCode": room_code
+    }
+    emit('chat_message', new_message, to=room_code)
     user = {"id": request.sid, "name": "User"}  # Replace with actual user name
     online_users_table.update({"users": online_users_table.get(Query().roomCode == room_code)['users'] + [user]}, Query().roomCode == room_code)
     emit('online_users_update', online_users_table.get(Query().roomCode == room_code)['users'], room=room_code)
