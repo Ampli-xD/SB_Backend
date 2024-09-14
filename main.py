@@ -7,6 +7,7 @@ import random
 import string
 from tinydb import TinyDB, Query
 import StormConversationHandler as SCH
+import CommandHandler as CH
 
 
 app = Flask(__name__)
@@ -85,19 +86,19 @@ def get_messages():
     return jsonify([msg for msg in room_messages])
 
 
-@app.route('/api/online-users', methods=['POST'])
-def get_online_users():
-    data = request.json
-    print("online user requested")
-    room_code = data.get('roomCode')
-    users = online_users_table.search(Query().roomCode == room_code)
-    return jsonify([user for user in users])
+# @app.route('/api/online-users', methods=['POST'])
+# def get_online_users():
+#     data = request.json
+#     print("online user requested")
+#     room_code = data.get('roomCode')
+#     users = online_users_table.search(Query().roomCode == room_code)
+#     return jsonify([user for user in users])
 
-@app.route('/api/uploaded-data', methods=['GET'])
-def get_uploaded_data():
-    room_code = request.args.get('roomCode')
-    data = uploaded_data_table.search(Query().roomCode == room_code)
-    return jsonify(data)
+# @app.route('/api/uploaded-data', methods=['GET'])
+# def get_uploaded_data():
+#     room_code = request.args.get('roomCode')
+#     data = uploaded_data_table.search(Query().roomCode == room_code)
+#     return jsonify(data)
 
 
 @app.route('/api/upload', methods=['POST'])
@@ -159,10 +160,12 @@ def handle_chat_message(data):
 
     print(f'Emitting message to room {room_code}:', new_message)
     emit('chat_message', new_message, room=room_code)
-    if "@storm" in new_message['content']:
-        return True
-    else:
-        return False
+    
+    for i in new_message['content']:
+        if "@" in i:
+            CH.extract_commands(i)
+        else:
+            pass
 
 
 @socketio.on('join_room')
@@ -182,8 +185,8 @@ def on_join_room(data):
     emit('chat_message', new_message, to=room_code)
     user = {"id": request.sid, "name": "User"}  # Replace with actual user name
     online_users_table.update({"users": online_users_table.get(Query().roomCode == room_code)['users'] + [user]}, Query().roomCode == room_code)
-    emit('online_users_update', online_users_table.get(Query().roomCode == room_code)['users'], room=room_code)
-    emit('update_online_count', len(online_users_table.get(Query().roomCode == room_code)['users']), room=room_code)
+    # emit('online_users_update', online_users_table.get(Query().roomCode == room_code)['users'], room=room_code)
+    # emit('update_online_count', len(online_users_table.get(Query().roomCode == room_code)['users']), room=room_code)
 
 
 @socketio.on('leave_room')
@@ -193,8 +196,8 @@ def on_leave_room(data):
     users = online_users_table.get(Query().roomCode == room_code)['users']
     users = [user for user in users if user['id'] != request.sid]
     online_users_table.update({"users": users}, Query().roomCode == room_code)
-    emit('online_users_update', users, room=room_code)
-    emit('update_online_count', len(users), room=room_code)
+    # emit('online_users_update', users, room=room_code)
+    # emit('update_online_count', len(users), room=room_code)
 
 
 # @socketio.on('disconnect')
