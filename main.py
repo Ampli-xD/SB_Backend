@@ -178,7 +178,7 @@ def handle_chat_message(data):
         }
         
         handler = CH.commandHandler(new_message, command_data)
-        content, commandName= handler.analyzeCommand(new_message, command_data)
+        content, commandName= handler.analyzeCommand()
         new_message = {
             "id": uuid.uuid4().hex,
             "content": content,
