@@ -6,7 +6,6 @@ from datetime import datetime
 import random
 import string
 from tinydb import TinyDB, Query
-import StormConversationHandler as SCH
 import CommandHandler as CH
 
 
@@ -47,12 +46,16 @@ def create_room():
     print(room_code, room_name, gemini_key, pinecone_key)
     print(f"Room has been created by: {user_name}")
 
+    creation_time_utc = datetime.now().isoformat()
+    
     rooms_table.insert({
         "code": room_code,
         "name": room_name,
         "gemini_key": gemini_key,
         "pinecone_key": pinecone_key,
-        "users": [user_name]
+        "users": [user_name],
+        "creator": user_name,
+        "creation_time_utc": creation_time_utc
     })
     return jsonify({"roomCode": room_code})
 
@@ -161,11 +164,31 @@ def handle_chat_message(data):
     print(f'Emitting message to room {room_code}:', new_message)
     emit('chat_message', new_message, room=room_code)
     
-    for i in new_message['content']:
-        if "@" in i:
-            CH.extract_commands(i)
-        else:
-            pass
+    if new_message['content'].startswith('!'):
+        room = rooms_table.get(Query().code == room_code)
+        messages = messages_table.search(Query().roomCode == room_code)
+        uploaded_data = uploaded_data_table.search(Query().roomCode == room_code)
+        online_users = online_users_table.get(Query().roomCode == room_code)
+
+        command_data = {
+            'room': room,
+            'messages': messages,
+            'uploaded_data': uploaded_data,
+            'online_users': online_users['users'] if online_users else []
+        }
+        
+        handler = CH.commandHandler(new_message, command_data)
+        content, commandName= handler.analyzeCommand(new_message, command_data)
+        new_message = {
+            "id": uuid.uuid4().hex,
+            "content": content,
+            "sender": commandName,
+            "timestamp": datetime.now().isoformat(),
+            "roomCode": room_code
+            }
+        
+        emit('chat_message', new_message, room=room_code)
+        
 
 
 @socketio.on('join_room')

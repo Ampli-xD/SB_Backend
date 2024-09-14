@@ -2,7 +2,7 @@ import google.generativeai as genai
 import os
 
 class GenAiProcessor:
-    def __init__(self, api_key: str, model_name='models/gemini-1.5-pro'):
+    def __init__(self, api_key: str, model_name="models/gemini-1.5-pro"):
         """Initialize the GenAiProcessor with the API key and model name."""
         self.api_key = api_key
         self.model_name = model_name
