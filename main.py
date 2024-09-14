@@ -64,9 +64,16 @@ def join_room_api():
     room = rooms_table.get(Query().code == room_code)
     if not room:
         return jsonify({"message": "Room not found"}), 404
-
     rooms_table.update({"users": room["users"] + [user_name]}, Query().code == room_code)
-    print(f"Room has been joined by: {user_name}")
+    new_message = {
+        "id": uuid.uuid4().hex,
+        "content": f"{data.userName} joined the room",
+        "sender": "SYSTEM",
+        "timestamp": datetime.now().isoformat(),
+        "roomCode": room_code
+    }
+    messages_table.insert(new_message)
+    emit('chat_message', new_message, room=room_code)
     return jsonify({"roomName": room["name"]})
 
 @app.route('/api/rooms/name', methods=['POST'])
@@ -175,15 +182,6 @@ def on_join_room(data):
         online_users_table.insert({"roomCode": room_code, "users": []})
 
     # start from here
-    new_message = {
-        "id": uuid.uuid4().hex,
-        "content": f"{data.userName} joined the room",
-        "sender": "SYSTEM",
-        "timestamp": datetime.now().isoformat(),
-        "roomCode": room_code
-    }
-    messages_table.insert(new_message)
-    emit('chat_message', new_message, room=room_code)
     user = {"id": request.sid, "name": "User"}  # Replace with actual user name
     online_users_table.update({"users": online_users_table.get(Query().roomCode == room_code)['users'] + [user]}, Query().roomCode == room_code)
     emit('online_users_update', online_users_table.get(Query().roomCode == room_code)['users'], room=room_code)
