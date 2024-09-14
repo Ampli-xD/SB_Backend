@@ -48,8 +48,9 @@ class HTMLComplexer:
             self.stack.append(tag)
         else:
             # Handle text content
-            self.close_all_tags()
             self.output.append(part)
+            self.close_all_tags()
+            
     
     def close_all_tags(self):
         # Close all currently open tags
