@@ -78,19 +78,21 @@ def get_name():
 
     
 
-@app.route('/api/messages/', methods=['GET'])
+@app.route('/api/messages/', methods=['POST'])
 def get_messages():
-    room_code = request.args.get('roomCode')
+    data = request.json
+    room_code = data.get('roomCode')
     room_messages = messages_table.search(Query().roomCode == room_code)
-    return jsonify([msg['content'] for msg in room_messages])
+    return jsonify([msg for msg in room_messages])
 
 
-@app.route('/api/online-users', methods=['GET'])
+@app.route('/api/online-users', methods=['POST'])
 def get_online_users():
+    data = request.json
     print("online user requested")
-    room_code = request.args.get('roomCode')
+    room_code = data.get('roomCode')
     users = online_users_table.search(Query().roomCode == room_code)
-    return jsonify([user['name'] for user in users])
+    return jsonify([user for user in users])
 
 @app.route('/api/uploaded-data', methods=['GET'])
 def get_uploaded_data():
@@ -172,6 +174,16 @@ def on_join_room(data):
     if not online_users_table.get(Query().roomCode == room_code):
         online_users_table.insert({"roomCode": room_code, "users": []})
 
+    # start from here
+    new_message = {
+        "id": uuid.uuid4().hex,
+        "content": f"{data.userName} joined the room",
+        "sender": "SYSTEM",
+        "timestamp": datetime.now().isoformat(),
+        "roomCode": room_code
+    }
+    messages_table.insert(new_message)
+    emit('chat_message', new_message, room=room_code)
     user = {"id": request.sid, "name": "User"}  # Replace with actual user name
     online_users_table.update({"users": online_users_table.get(Query().roomCode == room_code)['users'] + [user]}, Query().roomCode == room_code)
     emit('online_users_update', online_users_table.get(Query().roomCode == room_code)['users'], room=room_code)
