@@ -7,6 +7,8 @@ import random
 import string
 from tinydb import TinyDB, Query
 import CommandHandler as CH
+from HtmlComplexer import HTMLComplexer
+Htmlcomplex = HTMLComplexer()
 
 
 app = Flask(__name__)
@@ -153,7 +155,7 @@ def handle_chat_message(data):
 
     new_message = {
         "id": uuid.uuid4().hex,
-        "content": content,
+        "content": Htmlcomplex.convert_to_html(content),
         "sender": userName,
         "timestamp": datetime.now().isoformat(),
         "roomCode": room_code
