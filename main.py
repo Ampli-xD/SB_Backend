@@ -67,7 +67,7 @@ def join_room_api():
     rooms_table.update({"users": room["users"] + [user_name]}, Query().code == room_code)
     new_message = {
         "id": uuid.uuid4().hex,
-        "content": f"{data.userName} joined the room",
+        "content": f"{user_name} joined the room",
         "sender": "SYSTEM",
         "timestamp": datetime.now().isoformat(),
         "roomCode": room_code
