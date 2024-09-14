@@ -1,6 +1,6 @@
 import uuid
 from flask import Flask, request, jsonify
-from flask_socketio import SocketIO, emit, join_room, leave_room
+from flask_socketio import SocketIO, emit, join_room, leave_room, send  
 from flask_cors import CORS
 from datetime import datetime
 import random
@@ -65,15 +65,6 @@ def join_room_api():
     if not room:
         return jsonify({"message": "Room not found"}), 404
     rooms_table.update({"users": room["users"] + [user_name]}, Query().code == room_code)
-    new_message = {
-        "id": uuid.uuid4().hex,
-        "content": f"{user_name} joined the room",
-        "sender": "SYSTEM",
-        "timestamp": datetime.now().isoformat(),
-        "roomCode": room_code
-    }
-    messages_table.insert(new_message)
-    emit('chat_message', new_message, room=room_code)
     return jsonify({"roomName": room["name"]})
 
 @app.route('/api/rooms/name', methods=['POST'])
@@ -176,12 +167,11 @@ def handle_chat_message(data):
 @socketio.on('join_room')
 def on_join_room(data):
     room_code = data['roomCode']
-    print(f"User {request.sid} joined room: {room_code}")
+    user_name = data['userName']
     join_room(room_code)
     if not online_users_table.get(Query().roomCode == room_code):
         online_users_table.insert({"roomCode": room_code, "users": []})
-
-    # start from here
+    send(user_name + ' has entered the room.', to=room_code)
     user = {"id": request.sid, "name": "User"}  # Replace with actual user name
     online_users_table.update({"users": online_users_table.get(Query().roomCode == room_code)['users'] + [user]}, Query().roomCode == room_code)
     emit('online_users_update', online_users_table.get(Query().roomCode == room_code)['users'], room=room_code)
