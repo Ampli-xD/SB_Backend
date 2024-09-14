@@ -72,7 +72,7 @@ def get_name():
     data = request.json
     room_code = data.get('roomCode')
     room = rooms_table.get(Query().code == room_code)
-    return jsonify(room['name']) if room else jsonify({"message": "Room not found"}), 404
+    return jsonify(room['name'])
 
     
 
@@ -171,7 +171,7 @@ def on_join_room(data):
     join_room(room_code)
     if not online_users_table.get(Query().roomCode == room_code):
         online_users_table.insert({"roomCode": room_code, "users": []})
-    send(user_name + ' has entered the room.', to=room_code)
+    emit('chat_message', f'{user_name} has entered the room.', to=room_code)
     user = {"id": request.sid, "name": "User"}  # Replace with actual user name
     online_users_table.update({"users": online_users_table.get(Query().roomCode == room_code)['users'] + [user]}, Query().roomCode == room_code)
     emit('online_users_update', online_users_table.get(Query().roomCode == room_code)['users'], room=room_code)
@@ -189,13 +189,13 @@ def on_leave_room(data):
     emit('update_online_count', len(users), room=room_code)
 
 
-@socketio.on('disconnect')
-def on_disconnect():
-    for room_code in online_users_table.all():
-        users = [user for user in room_code['users'] if user['id'] != request.sid]
-        online_users_table.update({"users": users}, Query().roomCode == room_code['roomCode'])
-        emit('online_users_update', users, room=room_code['roomCode'])
-        emit('update_online_count', len(users), room=room_code['roomCode'])
+# @socketio.on('disconnect')
+# def on_disconnect():
+#     for room_code in online_users_table.all():
+#         users = [user for user in room_code['users'] if user['id'] != request.sid]
+#         online_users_table.update({"users": users}, Query().roomCode == room_code['roomCode'])
+#         emit('online_users_update', users, room=room_code['roomCode'])
+#         emit('update_online_count', len(users), room=room_code['roomCode'])
 
 
 @socketio.on('user_activity')
