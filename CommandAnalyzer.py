@@ -20,7 +20,7 @@ class CommandProcessor:
         formatted_content = self.html_complexer.convert_to_html(content)
         return f"Storm command received with content: {formatted_content}"
     
-    def handle_info(self):
+    def handle_info(self, content):
         room_code = self.room.get('code', 'N/A')
         room_name = self.room.get('name', 'N/A')
         creator = self.room.get('creator', 'N/A')
