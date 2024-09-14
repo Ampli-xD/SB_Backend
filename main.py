@@ -8,7 +8,7 @@ import string
 from tinydb import TinyDB, Query
 import CommandHandler as CH
 from HtmlComplexer import HTMLComplexer
-Htmlcomplex = HTMLComplexer()
+
 
 
 app = Flask(__name__)
@@ -152,7 +152,7 @@ def handle_chat_message(data):
     if not room_code or not content:
         print('Error: Missing roomCode or content')
         return
-
+    Htmlcomplex = HTMLComplexer()
     new_message = {
         "id": uuid.uuid4().hex,
         "content": Htmlcomplex.convert_to_html(content),
