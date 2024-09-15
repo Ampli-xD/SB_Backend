@@ -77,7 +77,7 @@ from PineconeAPIHandler import VectorDBProcessor
 
 def validate_keys(gemini_key, pinecone_key):
     gem = GenAiProcessor(gemini_key).verifier(gemini_key)
-    pin = VectorDBProcessor(pinecone_key).verifier(pinecone_key)
+    pin = VectorDBProcessor((pinecone_key, gemini_key)).verifier(pinecone_key)
     return gem and pin
 
-print(validate_keys("AIzaSyBVCCh_IsrbOpwD9sDd_frc8t1YYt4haXE", "AIzaSyBVCCh_IsrbOpwD9sDd_frc8t1YYt4haXE"))
+print(validate_keys("AIzaSyBVCCh_IsrbOpwD9sDd_frc8t1YYt4haXE", "b0090664-f099-4b28-8b44-02f1927d5b53"))

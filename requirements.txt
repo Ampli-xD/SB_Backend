@@ -3,3 +3,10 @@ flask_socketio
 flask_cors
 tinydb
 google-generativeai
+pypdf2
+pypdf
+pinecone-client
+google.generativeai
+langchain-google-genai
+langchain
+langchain_community

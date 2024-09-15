@@ -178,13 +178,14 @@ def handle_chat_message(data):
 
     print(f'Emitting message to room {room_code}:', new_message)
     emit('chat_message', new_message, room=room_code)
+    global Pinger
     if new_message['content']=="!pingStart":
         Pinger = True
         emit('ping_server',  {'incrementor' : 1, 'message' : 'Pinging!!!'})
     elif new_message['content']=="!pingStop":
         Pinger =False
     
-    if new_message['content'].startswith('!'):
+    if new_message['content'].startswith('!') and new_message['content']!="!pingStart" and new_message['content']!="!pingStop":
         room = rooms_table.get(Query().code == room_code)
         messages = messages_table.search(Query().roomCode == room_code)
         uploaded_data = uploaded_data_table.search(Query().roomCode == room_code)
@@ -209,7 +210,6 @@ def handle_chat_message(data):
             }
         
         emit('chat_message', new_message, room=room_code)
-        
 
 
 @socketio.on('join_room')
@@ -260,6 +260,7 @@ def on_user_activity(data):
 
 @socketio.on('ping_server')
 def on_ping_server(ping):
+    global Pinger
     while Pinger is True:
         emit('ping_server',  {'incrementor' : ping['incrementor']+1, 'message' : 'Pinging!!!'})
         time.sleep(30)
@@ -267,7 +268,7 @@ def on_ping_server(ping):
 
 def validate_keys(gemini_key, pinecone_key):
     gem = GenAiProcessor(gemini_key).verifier(gemini_key)
-    pin = VectorDBProcessor(pinecone_key).verifier(pinecone_key)
+    pin = VectorDBProcessor((pinecone_key, gemini_key)).verifier(pinecone_key)
     return gem and pin
 
 if __name__ == '__main__':
