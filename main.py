@@ -44,7 +44,7 @@ def create_room():
     gemini_key = data.get('geminiKey')
     pinecone_key = data.get('pineconeKey')
     
-    if not validate_keys(gemini_key, pinecone_key):
+    if validate_keys(gemini_key, pinecone_key):
         return jsonify({"message": "Invalid Gemini or Pinecone key"}), 400
 
     gemini_instance = GenAiProcessor(gemini_key)
@@ -189,8 +189,8 @@ def handle_chat_message(data):
             'uploaded_data': uploaded_data,
             'online_users': online_users if online_users else {}
         }
-        gemini_instance = room_instances.get(room_code)
-        pinecone_instance = room_instances.get(room_code)
+        gemini_instance = room_instances.get(room_code).get('gemini_instance')
+        pinecone_instance = room_instances.get(room_code).get('pinecone_instance')
         handler = CH.commandHandler(new_message, command_data, (gemini_instance, pinecone_instance))
         content, commandName= handler.analyzeCommand()
         new_message = {
