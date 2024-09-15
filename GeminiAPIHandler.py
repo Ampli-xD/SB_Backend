@@ -30,10 +30,16 @@ class GenAiProcessor:
             self.chat_session = self.model.start_chat(enable_automatic_function_calling=True)
         return self.chat_session
 
-    def chat(self, message: str, prompt: str) -> str:
+    p = """you are storm an AI brainstorming companion, you are here to help brainstorm 
+        ideas for diverse fields, be polite and answer the questions properly. you are developed 
+        to ideate and process different ideas for events, hackthons, project planning, startups etc.
+        you are a very helpful AI companion create by Dishant, you are here to help the users"""
+        
+    def chat(self, message: str, prompt = p ) -> str:
         """Send a message along with a prompt to the chat session and get the response."""
         session = self.start_chat_session()
         full_message = message + " " + prompt
         response = session.send_message(full_message)
         return response.text
-
+    
+    
