@@ -220,7 +220,7 @@ def on_join_room(data):
         "roomCode": room_code
     }
     emit('chat_message', new_message, to=room_code)
-    user = {"id": request.sid, "name": "User"}  # Replace with actual user name
+    user = {"id": request.sid, "name": user_name}  # Replace with actual user name
     online_users_table.update({"users": online_users_table.get(Query().roomCode == room_code)['users'] + [user]}, Query().roomCode == room_code)
     # emit('online_users_update', online_users_table.get(Query().roomCode == room_code)['users'], room=room_code)
     # emit('update_online_count', len(online_users_table.get(Query().roomCode == room_code)['users']), room=room_code)
