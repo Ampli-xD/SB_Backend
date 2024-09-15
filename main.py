@@ -204,7 +204,7 @@ def handle_chat_message(data):
             'uploaded_data': uploaded_data,
             'online_users': online_users if online_users else {}
         }
-        gemini_instance = room_instances.get(room_code).get('gemini_instance')
+        gemini_instance = room_instances[room_code]['gemini_instance']
         pinecone_instance = room_instances.get(room_code).get('pinecone_instance')
         handler = CH.commandHandler(new_message, command_data, (gemini_instance, pinecone_instance))
         content, commandName= handler.analyzeCommand()
