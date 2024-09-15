@@ -1,8 +1,8 @@
 import CommandAnalyzer as CA
 class commandHandler:
-    def __init__(self, message, data):
+    def __init__(self, message, data, instance_tuple):
         self.content = message['content']
-        self.CommandAnalyzer= CA.CommandProcessor(data)
+        self.CommandAnalyzer= CA.CommandProcessor(data, instance_tuple)
     def commandSplitter(self, command_text):
         parts = command_text[1:].split(maxsplit=1)
         command = parts[0]

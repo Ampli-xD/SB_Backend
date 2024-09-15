@@ -23,6 +23,7 @@ rooms_table = db.table('rooms')
 messages_table = db.table('messages')
 uploaded_data_table = db.table('uploaded_data')
 online_users_table = db.table('online_users')
+room_instances = {}
 
 
 
@@ -57,12 +58,18 @@ def create_room():
     rooms_table.insert({
         "code": room_code,
         "name": room_name,
-        "gemini_instance": gemini_instance,
-        "pinecone_instance": pinecone_instance,
+        "gemini_key": gemini_key,
+        "pinecone_key": pinecone_key,
         "users": [user_name],
         "creator": user_name,
         "creation_time_utc": creation_time_utc
     })
+    
+    room_instances[room_code] = {
+        'gemini_instance': gemini_instance,
+        'pinecone_instance': pinecone_instance
+    }    
+    
     return jsonify({"roomCode": room_code})
 
 
@@ -182,8 +189,9 @@ def handle_chat_message(data):
             'uploaded_data': uploaded_data,
             'online_users': online_users if online_users else {}
         }
-        
-        handler = CH.commandHandler(new_message, command_data)
+        gemini_instance = room_instances.get(room_code)
+        pinecone_instance = room_instances.get(room_code)
+        handler = CH.commandHandler(new_message, command_data, (gemini_instance, pinecone_instance))
         content, commandName= handler.analyzeCommand()
         new_message = {
             "id": uuid.uuid4().hex,

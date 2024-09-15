@@ -1,6 +1,6 @@
 from HtmlComplexer import HTMLComplexer
 class CommandProcessor:
-    def __init__(self, data):
+    def __init__(self, data, instance_tuple):
         self.commands = {
             'storm': self.handle_storm,
             'info': self.handle_info,
@@ -10,7 +10,8 @@ class CommandProcessor:
             'search': self.handle_search,
             'stormAnalyze': self.handle_storm_analyze
         }
-        self.received_data = data
+        self.gemini_instance = instance_tuple[0]
+        self.pinecone_instance = instance_tuple[1]
         self.room = data['room']
         self.messages = data['messages']
         self.uploaded_data = data['uploaded_data']
@@ -18,7 +19,7 @@ class CommandProcessor:
         self.html_complexer = HTMLComplexer()  # Initialize HTMLComplexer
 
     def handle_storm(self, content):
-        gemini = self.received_data['gemini_instance']
+        gemini = self.gemini_instance
         response = gemini.chat(content)
         formatted_content = self.html_complexer.convert_to_html(response.text)
         return f"Storm command received with content: {formatted_content}"
