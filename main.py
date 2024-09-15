@@ -3,6 +3,7 @@ from flask import Flask, request, jsonify
 from flask_socketio import SocketIO, emit, join_room, leave_room, send  
 from flask_cors import CORS
 from datetime import datetime
+import pytz
 import random
 import string
 from tinydb import TinyDB, Query
@@ -55,7 +56,7 @@ def create_room():
     print(room_code, room_name, gemini_key, pinecone_key)
     print(f"Room has been created by: {user_name}")
 
-    creation_time_utc = datetime.now().isoformat()
+    creation_time_utc = get_current_ist_datetime()
     
     rooms_table.insert({
         "code": room_code,
@@ -132,8 +133,14 @@ def upload_file():
         "filename": file.filename
     }
     uploaded_data_table.insert({"roomCode": room_code, **file_data})
-    
-    socketio.emit('uploaded_data_update', uploaded_data_table.search(Query().roomCode == room_code), room=room_code)
+    new_message = {
+        "id": uuid.uuid4().hex,
+        "content": f"{uploaded_data_table.search(Query().roomCode == room_code)} vectors are embedded.",
+        "sender": "System",
+        "timestamp": get_current_ist_datetime(),
+        "roomCode": room_code
+    }
+    socketio.emit('chat_message', new_message, room=room_code)
     
     return jsonify({"success": True})
 
@@ -170,7 +177,7 @@ def handle_chat_message(data):
         "id": uuid.uuid4().hex,
         "content": Htmlcomplex.convert_to_html(content),
         "sender": userName,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": get_current_ist_datetime(),
         "roomCode": room_code
     }
     
@@ -205,7 +212,7 @@ def handle_chat_message(data):
             "id": uuid.uuid4().hex,
             "content": content,
             "sender": commandName,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": get_current_ist_datetime(),
             "roomCode": room_code
             }
         
@@ -223,7 +230,7 @@ def on_join_room(data):
         "id": uuid.uuid4().hex,
         "content": f"{user_name} has entered the room.",
         "sender": "System",
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": get_current_ist_datetime(),
         "roomCode": room_code
     }
     emit('chat_message', new_message, to=room_code)
@@ -249,6 +256,16 @@ def on_disconnect():
     for room_code in online_users_table.all():
         users = [user for user in room_code['users'] if user['id'] != request.sid]
         online_users_table.update({"users": users}, Query().roomCode == room_code['roomCode'])
+    for room_code in online_users_table.all():
+        user_name = [user['name'] for user in room_code['users'] if user['id'] == request.sid]
+        new_message = {
+            "id": uuid.uuid4().hex,
+            "content": f"{user_name[0]} has left the room.",
+            "sender": "System",
+            "timestamp": get_current_ist_datetime(),
+            "roomCode": room_code
+        }
+        emit('chat_message', new_message, to=room_code)
 
 
 @socketio.on('user_activity')
@@ -270,6 +287,12 @@ def validate_keys(gemini_key, pinecone_key):
     gem = GenAiProcessor(gemini_key).verifier(gemini_key)
     pin = VectorDBProcessor((pinecone_key, gemini_key)).verifier(pinecone_key)
     return gem and pin
+
+def get_current_ist_datetime():
+    ist = pytz.timezone('Asia/Kolkata')
+    utc_now = datetime.now(pytz.utc)
+    ist_now = utc_now.astimezone(ist)
+    return ist_now.strftime('%Y-%m-%d %H:%M:%S')
 
 if __name__ == '__main__':
     socketio.run(app, allow_unsafe_werkzeug=True, host='0.0.0.0', port=5000)
