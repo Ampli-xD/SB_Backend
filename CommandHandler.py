@@ -6,7 +6,7 @@ class commandHandler:
     def commandSplitter(self, command_text):
         parts = command_text[1:].split(maxsplit=1)
         command = parts[0]
-        content = parts[1]
+        content = parts[1] if len(parts) > 1 else ''
         return ('!', command, content)
     def analyzeCommand(self):
         splitted = self.commandSplitter(self.content)
