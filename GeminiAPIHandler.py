@@ -10,10 +10,10 @@ class GenAiProcessor:
         self.initialize_model()
 
     @staticmethod
-    def verifier():
+    def verifier(api_key):
         """Verify the API key."""
         try:
-            genai.configure(api_key=self.api_key)
+            genai.configure(api_key=api_key)
             genai.GenerativeModel(model_name='models/gemini-1.5-pro')
             return True
         except Exception as e:
