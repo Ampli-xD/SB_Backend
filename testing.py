@@ -65,7 +65,19 @@ sample_message = {
 }
 
 
-ch = commandHandler(sample_message,sample_data)
-content, commandName = ch.analyzeCommand()
-print(commandName)
-print(content)
+# ch = commandHandler(sample_message,sample_data)
+# content, commandName = ch.analyzeCommand()
+# print(commandName)
+# print(content)
+
+from GeminiAPIHandler import GenAiProcessor
+from PineconeAPIHandler import VectorDBProcessor
+# gemini = GenAiProcessor("AIzaSyBVCCh_IsrbOpwD9sDd_frc8t1YYt4haXE")
+# val = gemini.verifier("AIzaSyBVCCh_IsrbOpwD9sDd_frc8t1YYt4haXE")
+
+def validate_keys(gemini_key, pinecone_key):
+    gem = GenAiProcessor(gemini_key).verifier(gemini_key)
+    pin = VectorDBProcessor(pinecone_key).verifier(pinecone_key)
+    return gem and pin
+
+print(validate_keys("AIzaSyBVCCh_IsrbOpwD9sDd_frc8t1YYt4haXE", "AIzaSyBVCCh_IsrbOpwD9sDd_frc8t1YYt4haXE"))

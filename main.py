@@ -44,7 +44,7 @@ def create_room():
     gemini_key = data.get('geminiKey')
     pinecone_key = data.get('pineconeKey')
     
-    if validate_keys(gemini_key, pinecone_key):
+    if not validate_keys(gemini_key, pinecone_key):
         return jsonify({"message": "Invalid Gemini or Pinecone key"}), 400
 
     gemini_instance = GenAiProcessor(gemini_key)
