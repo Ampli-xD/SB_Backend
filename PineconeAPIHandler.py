@@ -55,20 +55,22 @@ class VectorDBProcessor:
         except:
             return False
 
-    def extract_pages(self, file):
+    def extract_and_embed_pages(self, file):
         if not file.filename.lower().endswith('.pdf'):
             raise ValueError("File must be a PDF")
         
         pdf_content = io.BytesIO(file.read())
         loader = PyPDFLoader(pdf_content)
         pages = loader.load_and_split()
-        return [page.page_content for page in pages]
-
-    def vectorize_and_upload(self, pdf_name, pages):
+        self.check_and_create_index()
         for page in pages:
-            embedding = self.embedding_model.embed_query(page)
-            metadata = {'source': pdf_name}
-            self.index.upsert([(pdf_name, embedding, metadata)])
+            self.vectorize_and_upload(file.filename, page.page_content)
+        return True
+
+    def vectorize_and_upload(self, pdf_name, page_content):
+        embedding = self.embedding_model.embed_query(page_content)
+        metadata = {'source': pdf_name}
+        self.index.upsert([(pdf_name, embedding, metadata)])
         print(f"Uploaded and Embedded {pdf_name}")
 
     def query_pinecone(self, query, top_k=10):

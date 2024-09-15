@@ -51,7 +51,7 @@ def create_room():
         return jsonify({"message": "Invalid Gemini or Pinecone key"}), 400
 
     gemini_instance = GenAiProcessor(gemini_key)
-    pinecone_instance = VectorDBProcessor(pinecone_key)
+    pinecone_instance = VectorDBProcessor((pinecone_key, gemini_key))
     room_code = generate_alphanumeric_string()
     print(room_code, room_name, gemini_key, pinecone_key)
     print(f"Room has been created by: {user_name}")
@@ -132,10 +132,13 @@ def upload_file():
         "id": generate_alphanumeric_string(),
         "filename": file.filename
     }
+    pinecone_instance = room_instances[room_code]['pinecone_instance']
+    
+    results = pinecone_instance.extract_and_embed_pages(file)
     uploaded_data_table.insert({"roomCode": room_code, **file_data})
     new_message = {
         "id": uuid.uuid4().hex,
-        "content": f"{uploaded_data_table.search(Query().roomCode == room_code)} vectors are embedded.",
+        "content": f"{uploaded_data_table.search(Query().roomCode == room_code)['filename']} vectors are embedded.",
         "sender": "System",
         "timestamp": get_current_ist_datetime(),
         "roomCode": room_code
