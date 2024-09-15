@@ -10,6 +10,7 @@ class CommandProcessor:
             'search': self.handle_search,
             'stormAnalyze': self.handle_storm_analyze
         }
+        self.received_data = data
         self.room = data['room']
         self.messages = data['messages']
         self.uploaded_data = data['uploaded_data']
@@ -17,7 +18,9 @@ class CommandProcessor:
         self.html_complexer = HTMLComplexer()  # Initialize HTMLComplexer
 
     def handle_storm(self, content):
-        formatted_content = self.html_complexer.convert_to_html(content)
+        gemini = self.received_data['gemini_instance']
+        response = gemini.chat(content)
+        formatted_content = self.html_complexer.convert_to_html(response.text)
         return f"Storm command received with content: {formatted_content}"
     
     def handle_info(self, content):
@@ -26,14 +29,15 @@ class CommandProcessor:
         creator = self.room.get('creator', 'N/A')
         creation_time = self.room.get('creation_time_utc', 'N/A')
         
-        online_users_list = ', '.join(user['name'] for user in self.online_users) if self.online_users else 'No users online'
+        print(self.online_users)
+        online_users_list = ', '.join(user['name'] for user in self.online_users['users']) if self.online_users else 'No users online'
         
-        info_text = (f"b Room Information ",
-                    f"b Name: br {room_name}",
-                    f"b Code: br {room_code}",
-                    f"b Creator: br {creator}",
-                    f"b Creation Time: br {creation_time}",
-                    f"b Online Users: br {online_users_list}")
+        info_text = (f'''.b Room Information .br
+                    .b Name: .cl {room_name} .br
+                    .b Code: .cl {room_code} .br
+                    .b Creator: .cl {creator} .br
+                    .b Creation Time: .cl {creation_time} .br
+                    .b Online Users: .cl {online_users_list} .br''')
         
         formatted_info = self.html_complexer.convert_to_html(info_text)
         return formatted_info

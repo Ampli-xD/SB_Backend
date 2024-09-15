@@ -9,7 +9,7 @@ class HTMLComplexer:
             ".u": "u",
             ".sub": "sub",
             ".sup": "sup",
-            "d": "del",
+            ".d": "del",
             ".ins": "ins",
             ".code": "code",
             ".pre": "pre",
@@ -33,23 +33,26 @@ class HTMLComplexer:
         self.stack = []
 
     def process_part(self, part: str):
-        if part == "br":
+        if part == ".br":
             # Close any open tags and add a <br> tag
             self.close_all_tags()
             self.output.append("<br>")
-        elif part == "hr":
+        elif part == ".hr":
             # Close any open tags and add a <hr> tag
             self.close_all_tags()
             self.output.append("<hr>")
+        elif part == ".cl":
+            self.close_all_tags()
         elif part in self.tag_mapping:
             # Handle opening tags
             tag = self.tag_mapping[part]
+            self.close_all_tags()
             self.output.append(f"<{tag}>")
             self.stack.append(tag)
         else:
             # Handle text content
             self.output.append(part)
-            self.close_all_tags()
+            
             
     
     def close_all_tags(self):

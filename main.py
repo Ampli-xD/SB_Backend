@@ -8,6 +8,8 @@ import string
 from tinydb import TinyDB, Query
 import CommandHandler as CH
 from HtmlComplexer import HTMLComplexer
+from GeminiAPIHandler import GenAiProcessor
+from PineconeAPIHandler import VectorDBProcessor
 
 
 
@@ -44,6 +46,8 @@ def create_room():
     if not validate_keys(gemini_key, pinecone_key):
         return jsonify({"message": "Invalid Gemini or Pinecone key"}), 400
 
+    gemini_instance = GenAiProcessor(gemini_key)
+    pinecone_instance = VectorDBProcessor(pinecone_key)
     room_code = generate_alphanumeric_string()
     print(room_code, room_name, gemini_key, pinecone_key)
     print(f"Room has been created by: {user_name}")
@@ -53,8 +57,8 @@ def create_room():
     rooms_table.insert({
         "code": room_code,
         "name": room_name,
-        "gemini_key": gemini_key,
-        "pinecone_key": pinecone_key,
+        "gemini_instance": gemini_instance,
+        "pinecone_instance": pinecone_instance,
         "users": [user_name],
         "creator": user_name,
         "creation_time_utc": creation_time_utc
@@ -176,7 +180,7 @@ def handle_chat_message(data):
             'room': room,
             'messages': messages,
             'uploaded_data': uploaded_data,
-            'online_users': online_users['users'] if online_users else []
+            'online_users': online_users if online_users else {}
         }
         
         handler = CH.commandHandler(new_message, command_data)
@@ -242,7 +246,9 @@ def on_user_activity(data):
     pass
 
 def validate_keys(gemini_key, pinecone_key):
-    # Implement your key validation logic here
-    return True  # Placeholder, always returns True
+    gem = GenAiProcessor.verifier(gemini_key)
+    pin = VectorDBProcessor.verifier(pinecone_key)
+    return gem and pin
+
 if __name__ == '__main__':
     socketio.run(app, allow_unsafe_werkzeug=True, host='0.0.0.0', port=5000)

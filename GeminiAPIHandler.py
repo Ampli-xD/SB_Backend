@@ -1,5 +1,4 @@
 import google.generativeai as genai
-import os
 
 class GenAiProcessor:
     def __init__(self, api_key: str, model_name="models/gemini-1.5-pro"):
@@ -18,7 +17,7 @@ class GenAiProcessor:
             genai.GenerativeModel(model_name='models/gemini-1.5-pro')
             return True
         except Exception as e:
-            return
+            return False
     
     def initialize_model(self):
         """Configure the model with the API key and initialize it."""
