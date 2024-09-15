@@ -22,7 +22,7 @@ class CommandProcessor:
         gemini = self.gemini_instance
         response = gemini.chat(content)
         formatted_content = self.html_complexer.convert_to_html(response)
-        return f"Storm command received with content: {formatted_content}"
+        return formatted_content
     
     def handle_info(self, content):
         room_code = self.room.get('code', 'N/A')
