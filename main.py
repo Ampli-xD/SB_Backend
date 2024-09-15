@@ -246,8 +246,8 @@ def on_user_activity(data):
     pass
 
 def validate_keys(gemini_key, pinecone_key):
-    gem = GenAiProcessor.verifier(gemini_key)
-    pin = VectorDBProcessor.verifier(pinecone_key)
+    gem = GenAiProcessor(gemini_key).verifier(gemini_key)
+    pin = VectorDBProcessor(pinecone_key).verifier(pinecone_key)
     return gem and pin
 
 if __name__ == '__main__':
