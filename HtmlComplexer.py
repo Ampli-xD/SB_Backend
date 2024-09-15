@@ -28,6 +28,11 @@ class HTMLComplexer:
             ".figcaption": "figcaption",
             ".figure": "figure",
             ".br": "br",
+            ".ul": "ul",
+            ".li": "li",
+            ".table": "table",
+            ".tr": "tr",
+            ".td": "td"
         }
         self.output = []
         self.stack = []
@@ -44,16 +49,38 @@ class HTMLComplexer:
         elif part == ".cl":
             self.close_all_tags()
         elif part in self.tag_mapping:
-            # Handle opening tags
             tag = self.tag_mapping[part]
-            self.close_all_tags()
-            self.output.append(f"<{tag}>")
-            self.stack.append(tag)
+            if tag == "li":
+                # Handle list item within a list
+                if self.stack and self.stack[-1] == "ul":
+                    self.close_all_tags()  # Close any open list item tags
+                self.output.append(f"<{tag}>")
+                self.stack.append(tag)
+            elif tag in ["tr", "td"]:
+                # Handle table row and table data
+                if tag == "tr":
+                    if self.stack and self.stack[-1] == "td":
+                        self.close_all_tags()  # Close any open table data tags
+                    if self.stack and self.stack[-1] == "table":
+                        self.output.append(f"<{tag}>")
+                        self.stack.append(tag)
+                else:  # for "td"
+                    if self.stack and self.stack[-1] == "tr":
+                        self.output.append(f"<{tag}>")
+                        self.stack.append(tag)
+            elif tag == "table":
+                # Handle table opening
+                self.close_all_tags()
+                self.output.append(f"<{tag}>")
+                self.stack.append(tag)
+            else:
+                # Handle other tags
+                self.close_all_tags()
+                self.output.append(f"<{tag}>")
+                self.stack.append(tag)
         else:
             # Handle text content
             self.output.append(part)
-            
-            
     
     def close_all_tags(self):
         # Close all currently open tags
@@ -68,4 +95,3 @@ class HTMLComplexer:
         # Close any remaining open tags
         self.close_all_tags()
         return ' '.join(self.output)
-

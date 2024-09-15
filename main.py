@@ -10,6 +10,7 @@ import CommandHandler as CH
 from HtmlComplexer import HTMLComplexer
 from GeminiAPIHandler import GenAiProcessor
 from PineconeAPIHandler import VectorDBProcessor
+import time
 
 
 
@@ -24,6 +25,7 @@ messages_table = db.table('messages')
 uploaded_data_table = db.table('uploaded_data')
 online_users_table = db.table('online_users')
 room_instances = {}
+Pinger = False
 
 
 
@@ -176,6 +178,11 @@ def handle_chat_message(data):
 
     print(f'Emitting message to room {room_code}:', new_message)
     emit('chat_message', new_message, room=room_code)
+    if new_message['content']=="!pingStart":
+        Pinger = True
+        emit('ping_server',  {'incrementor' : 1, 'message' : 'Pinging!!!'})
+    elif new_message['content']=="!pingStop":
+        Pinger =False
     
     if new_message['content'].startswith('!'):
         room = rooms_table.get(Query().code == room_code)
@@ -237,13 +244,11 @@ def on_leave_room(data):
     # emit('update_online_count', len(users), room=room_code)
 
 
-# @socketio.on('disconnect')
-# def on_disconnect():
-#     for room_code in online_users_table.all():
-#         users = [user for user in room_code['users'] if user['id'] != request.sid]
-#         online_users_table.update({"users": users}, Query().roomCode == room_code['roomCode'])
-#         emit('online_users_update', users, room=room_code['roomCode'])
-#         emit('update_online_count', len(users), room=room_code['roomCode'])
+@socketio.on('disconnect')
+def on_disconnect():
+    for room_code in online_users_table.all():
+        users = [user for user in room_code['users'] if user['id'] != request.sid]
+        online_users_table.update({"users": users}, Query().roomCode == room_code['roomCode'])
 
 
 @socketio.on('user_activity')
@@ -252,6 +257,13 @@ def on_user_activity(data):
     # This event is used to update the last activity time for the room
     # Implement your room expiry logic here
     pass
+
+@socketio.on('ping_server')
+def on_ping_server(ping):
+    while Pinger is True:
+        emit('ping_server',  {'incrementor' : ping['incrementor']+1, 'message' : 'Pinging!!!'})
+        time.sleep(30)
+
 
 def validate_keys(gemini_key, pinecone_key):
     gem = GenAiProcessor(gemini_key).verifier(gemini_key)
