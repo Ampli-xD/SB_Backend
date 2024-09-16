@@ -303,8 +303,9 @@ def on_user_activity(data):
 def on_ping_server(ping):
     global Pinger
     while Pinger is True:
+        time.sleep(50)
         emit('ping_server',  {'incrementor' : ping['incrementor']+1, 'message' : 'Pinging!!!'})
-        time.sleep(30)
+        
 
 
 def validate_keys(gemini_key, pinecone_key):
