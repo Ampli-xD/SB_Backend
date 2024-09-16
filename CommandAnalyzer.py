@@ -62,8 +62,8 @@ class CommandProcessor:
         formatted_content = """<table><thead>
         <tr><th>Score</th><th>Content</th><th>ID</th><th>Filename</th></tr>
         """
-        for score, id, filename, chunk in results:
-            formatted_content+=f"""<tr><td>{score}</td><td>{chunk}</td><td>{id}</td><td>{filename}</td></tr>"""
+        # for score, id, filename, chunk in results:
+        #     formatted_content+=f"""<tr><td>{score}</td><td>{chunk}</td><td>{id}</td><td>{filename}</td></tr>"""
         formatted_content+="""</thead></table>"""
         return results
     
