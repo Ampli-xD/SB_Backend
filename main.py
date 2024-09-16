@@ -100,6 +100,63 @@ def join_room_api():
     rooms_table.update({"users": room["users"] + [user_name]}, Query().code == room_code)
     return jsonify({"roomName": room["name"]})
 
+@app.route('/api/rooms/import', methods=['POST'])
+def import_room_api():
+    if 'file' not in request.files:
+        return jsonify({"message": "No file provided"}), 400
+
+    file = request.files['file']
+    if not file.filename.lower().endswith('.json'):
+        return jsonify({"message": "Only JSON files are accepted"}), 400
+
+    try:
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+        file.save(file_path)
+
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+
+        required_keys = ['room', 'messages', 'uploaded_data', 'online_users']
+        if not all(key in data for key in required_keys):
+            return jsonify({"message": "Invalid JSON format"}), 400
+
+        room = data['room']
+        messages = data['messages']
+        uploaded_data = data['uploaded_data']
+        online_users = data['online_users']
+
+        if not all(key in room for key in ['code', 'name', 'gemini_key', 'pinecone_key', 'users', 'creator', 'creation_time_utc']):
+            return jsonify({"message": "Invalid room data"}), 400
+
+        existing_room = rooms_table.get(Query().code == room['code'])
+        if existing_room:
+            rooms_table.update(room, Query().code == room['code'])
+        else:
+            rooms_table.insert(room)
+
+        for message in messages:
+            messages_table.insert(message)
+
+        for data_item in uploaded_data:
+            uploaded_data_table.insert(data_item)
+
+        online_users_data = {"roomCode": room['code'], "users": online_users}
+        existing_online_users = online_users_table.get(Query().roomCode == room['code'])
+        if existing_online_users:
+            online_users_table.update(online_users_data, Query().roomCode == room['code'])
+        else:
+            online_users_table.insert(online_users_data)
+
+        os.remove(file_path)
+        return jsonify({"message": "Room imported and users joined successfully"}), 200
+
+    except json.JSONDecodeError:
+        return jsonify({"message": "Invalid JSON format"}), 400
+    except Exception as e:
+        print(f"Error importing room: {e}")
+        return jsonify({"message": "An unexpected error occurred"}), 500
+
+
 @app.route('/api/rooms/name', methods=['POST'])
 def get_name():
     data = request.json
