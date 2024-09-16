@@ -65,7 +65,7 @@ class CommandProcessor:
         for score, id, filename, chunk in results:
             formatted_content+=f"""<tr><td>{score}</td><td>{chunk}</td><td>{id}</td><td>{filename}</td></tr>"""
         formatted_content+="""</thead></table>"""
-        return formatted_content
+        return results
     
     def handle_storm_analyze(self, content):
         formatted_content = self.html_complexer.convert_to_html(content)

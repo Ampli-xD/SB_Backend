@@ -105,4 +105,4 @@ class VectorDBProcessor:
             reverse=True
         )
         
-        return sorted_results
+        return matches
