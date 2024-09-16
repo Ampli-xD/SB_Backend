@@ -62,7 +62,6 @@ class VectorDBProcessor:
             pdf_content = io.BytesIO(file.read())
             loader = PyPDFLoader(pdf_content)
             pages = loader.load_and_split()
-
             # Split pages into smaller chunks (4-5 lines each)
             small_chunks = []
             for page in pages:
@@ -70,15 +69,14 @@ class VectorDBProcessor:
                 small_chunks.extend(
                     ['\n'.join(page_content[i:i+5]) for i in range(0, len(page_content), 5)]
                 )
-            
             self.check_and_create_index()
-
             for chunk in small_chunks:
                 self.vectorize_and_upload(file.filename, chunk)
+            return True
         except Exception as e:
             print(f"Error processing file: {e}")
             return False
-        return True
+        
 
     def vectorize_and_upload(self, pdf_name, chunk_content):
         embedding = self.embedding_model.embed_query(chunk_content)

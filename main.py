@@ -151,7 +151,6 @@ def upload_file():
             "roomCode": room_code
         }
         socketio.emit('chat_message', new_message, room=room_code)
-
         return jsonify({"success": True})
     else: 
         return jsonify({"success": False})
