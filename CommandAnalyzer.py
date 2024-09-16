@@ -5,7 +5,6 @@ class CommandProcessor:
             'storm': self.handle_storm,
             'info': self.handle_info,
             'help': self.handle_help,
-            'demo': self.handle_demo,
             'listfiles': self.handle_files,
             'search': self.handle_search,
             'stormAnalyze': self.handle_storm_analyze
@@ -44,17 +43,31 @@ class CommandProcessor:
         return formatted_info
     
     def handle_help(self, content):
-        help_text = "Help command received. Here are some instructions..."
+        help_text = """
+        <marquee>Help Command</marquee>
+        <p>Here is a list of available commands:</p>
+        <ul>
+            <li><b>!storm</b> - Process the given content using the Gemini AI instance.</li>
+            <li><b>!info</b> - Display information about the current room, including name, code, creator, creation time, and online users.</li>
+            <li><b>!help</b> - Display this help message.</li>
+            <li><b>!listfiles</b> - List all uploaded files in the current room.</li>
+            <li><b>!search</b> - Search the Pinecone vector database for content and display results.</li>
+            <li><b>!stormAnalyze</b> - Perform a storm analysis using the provided context.</li>
+        </ul>
+        <p>Use these commands in the chat by typing the command prefixed with an exclamation mark (!).</p>
+        """
         formatted_help = self.html_complexer.convert_to_html(help_text)
         return formatted_help
     
-    def handle_demo(self, content):
-        formatted_content = self.html_complexer.convert_to_html(content)
-        return f"Demo command received with content: {formatted_content}"
-    
     def handle_files(self, content):
-        formatted_content = self.html_complexer.convert_to_html(content)
-        return f"Files command received with content: {formatted_content}"
+        formatted_content = "<table><thead><tr><th>ID</th><th>Filename</th></tr>"
+        room_code = self.room.get('code', 'N/A')
+        files = [file for file in self.uploaded_data if file['roomCode'] == room_code]
+        for file in files:
+            formatted_content += f"<tr><td>{file['id']}</td><td>{file['filename']}</td></tr>"
+        formatted_content += "</thead></table>"
+        formatted_content = self.html_complexer.convert_to_html(formatted_content)
+        return formatted_content
     
     def handle_search(self, content):
         vectordb = self.pinecone_instance
@@ -67,8 +80,9 @@ class CommandProcessor:
         return formatted_content
     
     def handle_storm_analyze(self, content):
-        formatted_content = self.html_complexer.convert_to_html(content)
-        return f"Storm Analyze command received with content: {formatted_content}"
+        vector_results = self.handle_search(content)
+        storm_results = self.handle_storm(f"{content}  use this context to answer the query:   {vector_results}")
+        return storm_results
     
     def analyze_command(self, command, content):
         if command in self.commands:

@@ -318,6 +318,7 @@ def handle_chat_message(data):
             "roomCode": room_code
             }
         
+        messages_table.insert(new_message)
         emit('chat_message', new_message, room=room_code)
 
 
