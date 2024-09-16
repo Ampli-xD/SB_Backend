@@ -12,6 +12,7 @@ from HtmlComplexer import HTMLComplexer
 from GeminiAPIHandler import GenAiProcessor
 from PineconeAPIHandler import VectorDBProcessor
 import time
+import os
 
 
 
@@ -27,6 +28,9 @@ uploaded_data_table = db.table('uploaded_data')
 online_users_table = db.table('online_users')
 room_instances = {}
 Pinger = False
+TEMP_FOLDER = 'TempFile'
+os.makedirs(TEMP_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = TEMP_FOLDER
 
 
 
@@ -131,30 +135,38 @@ def get_messages():
 def upload_file():
     room_code = request.form.get('roomCode')
     file = request.files.get('file')
-    
     if not file:
         return jsonify({"success": False, "message": "No file provided"}), 400
     if not file.filename.lower().endswith('.pdf'):
-            return jsonify({"message": "Only PDFs are accepted for now"}), 400
+        return jsonify({"message": "Only PDFs are accepted for now"}), 400
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+    file.save(file_path)
+    
     pinecone_instance = room_instances[room_code]['pinecone_instance']
     
-    if pinecone_instance.extract_and_embed_pages(file):
-        file_data = {
-        "id": generate_alphanumeric_string(),
-        "filename": file.filename
-        }
-        uploaded_data_table.insert({"roomCode": room_code, **file_data})
-        new_message = {
-            "id": uuid.uuid4().hex,
-            "content": f"{uploaded_data_table.search(Query().roomCode == room_code)['filename']} vectors are embedded.",
-            "sender": "System",
-            "timestamp": get_current_ist_datetime(),
-            "roomCode": room_code
-        }
-        socketio.emit('chat_message', new_message, room=room_code)
-        return jsonify({"success": True})
-    else: 
-        return jsonify({"message": "failed to embed"}), 404
+    try:
+        if pinecone_instance.extract_and_embed_pages(file_path):
+            file_data = {
+                "id": generate_alphanumeric_string(),
+                "filename": file.filename
+            }
+            uploaded_data_table.insert({"roomCode": room_code, **file_data})
+            new_message = {
+                "id": uuid.uuid4().hex,
+                "content": f"{uploaded_data_table.search(Query().roomCode == room_code)['filename']} vectors are embedded.",
+                "sender": "System",
+                "timestamp": get_current_ist_datetime(),
+                "roomCode": room_code
+            }
+            socketio.emit('chat_message', new_message, room=room_code)
+            os.remove(file_path)
+            return jsonify({"success": True, "message": "File embedded successfully"}), 200
+        else:
+            os.remove(file_path)
+            return jsonify({"message": "Failed to embed file"}), 404
+    except Exception as e:
+        os.remove(file_path)
+        return jsonify({"message": str(e)}), 500
 
 
 @app.route('/api/export-room', methods=['GET'])

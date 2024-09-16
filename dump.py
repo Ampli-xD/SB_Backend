@@ -1,121 +1,42 @@
 from flask import Flask, request, jsonify
-from flask_socketio import SocketIO, emit, join_room, leave_room, send
+from PineconeAPIHandler import VectorDBProcessor
 from flask_cors import CORS
+import os
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key'
 CORS(app, resources={r"/*": {"origins": "*"}})
-socketio = SocketIO(app, cors_allowed_origins="*")
 
-connected_clients = set()
+# Folder to store uploaded files temporarily
+TEMP_FOLDER = 'TempFile'
+os.makedirs(TEMP_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = TEMP_FOLDER
 
-rooms=[]
-'''
-rooms=[
-    {
-        'roomid':roomid,
-        'brains':[{
-            'name': username,
-            'id': usersid
-            }]
-    }
-]
-'''
 
-# Root route
-@app.route('/')
-def index():
-    return "WebSocket server is running. Use a Socket.IO client to connect."
 
-# API route
-@app.route('/rooms/create', methods=['POST'])
-def api_message_createRoom():
-    return jsonify({'roomCode': '1234'})
-
-@app.route('/rooms/join', methods=['POST'])
-def api_message_joinRoom():
-    return jsonify({'roomName': 'bite'})
-
-# WebSocket event handlers
-@socketio.on('connect')
-def handle_connect():
-    connected_clients.add(request.sid)
-    print(f'Client connected. Total clients: {len(connected_clients)}')
-    emit('response', {'message': 'Connected successfully'})
+@app.route('/api/upload', methods=['POST'])
+def upload_file():
+    room_code = request.form.get('roomCode')
+    file = request.files.get('file')
+    if not file:
+        return jsonify({"success": False, "message": "No file provided"}), 400
+    if not file.filename.lower().endswith('.pdf'):
+        return jsonify({"message": "Only PDFs are accepted for now"}), 400
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+    file.save(file_path)
     
+    pinecone_instance = VectorDBProcessor(("b0090664-f099-4b28-8b44-02f1927d5b53","AIzaSyBVCCh_IsrbOpwD9sDd_frc8t1YYt4haXE"))
 
-@socketio.on('brainData')
-def handle_brainData(data):
-    added = False
-    print(data)
-    roomId = data['roomId']
-    name = data['name']
-    id = request.sid
-    emit('newData', {
-        'type': 'newBrain',
-        'brains':[{
-            'id': id,
-            'name': name
-        }]
-    })
-    for i in rooms:
-        if i['roomId'] == roomId:
-            i['brains'].append({
-                'name': name,
-                'id': id
-            })
-            added = True
-    if added == False:
-        rooms.append(
-            {'roomId':roomId,
-             'brains':[{
-                 'name': name,
-                 'id': id
-                 }]
-             }
-        )
-            
-    
-@socketio.on('disconnect')
-def handle_disconnect():
-    connected_clients.remove(request.sid)
-    print(f'Client disconnected. Total clients: {len(connected_clients)}')
-
-@socketio.on('message')
-def handle_message(data):
-    print('Received message:', data)
-    ids=[]
-    for i in rooms:
-        if i['roomId'] == data['roomId']:
-            for j in i['brains']:
-                ids.append(j['id'])
-    for i in ids:
-        emit('roomMessage', {'message': f'Client {data['name']}: {data['message']}'}, to=i)
-    print(ids)
-    print(rooms)
-    
-@socketio.on('join', namespace='/chat')
-def on_join(data):
-    username = data['username']
-    room = data['room']
-    join_room(room)
-    send(username + ' has entered the room.', to=room)
-
-@socketio.on('leave')
-def on_leave(data):
-    username = data['username']
-    room = data['room']
-    leave_room(room)
-    send(username + ' has left the room.', to=room)
-
-@socketio.on('event', namespace='/chat')
-def handle_chat_message(data):
-    print('Received message:', data)
-    # You can process the message here and emit a response if needed
-    # For example, broadcasting the message to all clients in the room
-    emit('chat_message', data, broadcast=True)
-
-
+    try:
+        if pinecone_instance.extract_and_embed_pages(file_path):
+            os.remove(file_path)
+            return jsonify({"success": True, "message": "File embedded successfully"}), 200
+        else:
+            os.remove(file_path)
+            return jsonify({"message": "Failed to embed file"}), 404
+    except Exception as e:
+        os.remove(file_path)
+        return jsonify({"message": str(e)}), 500
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000)
+    app.run(debug=True)
