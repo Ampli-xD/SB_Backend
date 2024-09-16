@@ -1,5 +1,6 @@
 import uuid
-from flask import Flask, request, jsonify
+import json
+from flask import Flask, request, jsonify, send_file
 from flask_socketio import SocketIO, emit, join_room, leave_room, send  
 from flask_cors import CORS
 from datetime import datetime
@@ -175,14 +176,21 @@ def export_room():
     room = rooms_table.get(Query().code == room_code)
     if not room:
         return jsonify({"message": "Room not found"}), 404
-    
+    messages = messages_table.search(Query().roomCode == room_code)
+    uploaded_data = uploaded_data_table.search(Query().roomCode == room_code)
+    online_users = online_users_table.get(Query().roomCode == room_code)
     room_data = {
         "room": room,
-        "messages": messages_table.search(Query().roomCode == room_code),
-        "uploaded_data": uploaded_data_table.search(Query().roomCode == room_code)
+        "messages": messages,
+        "uploaded_data": uploaded_data,
+        "online_users": online_users['users'] if online_users else []
     }
-    
-    return jsonify(room_data)
+    json_data = json.dumps(room_data, indent=4)
+    export_file_path = os.path.join(TEMP_FOLDER, f'{room_code}_export.json')
+    with open(export_file_path, 'w') as f:
+        f.write(json_data)
+    return send_file(export_file_path, as_attachment=True, attachment_filename=f'{room_code}_export.json')
+
 
 
 @socketio.on('chat_message')
