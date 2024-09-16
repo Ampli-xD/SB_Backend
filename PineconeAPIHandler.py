@@ -95,6 +95,7 @@ class VectorDBProcessor:
         print(f"Uploaded and Embedded {pdf_name}.part.{count}")
 
     def query_vectordb(self, query, top_k=10):
+        self.check_and_create_index()
         query_embedding = self.embedding_model.embed_query(query)
         results = self.index.query(vector=query_embedding, top_k=top_k)
         matches = results['matches']
