@@ -258,7 +258,7 @@ def export_room():
     with open(export_file_path, 'w') as f:
         f.write(json_data)
     
-    return send_file(export_file_path, as_attachment=True, attachment_filename=f'{room_code}_export.json')
+    return send_file(export_file_path, as_attachment=True)
 
 
 
