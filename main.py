@@ -134,18 +134,20 @@ def upload_file():
     }
     pinecone_instance = room_instances[room_code]['pinecone_instance']
     
-    results = pinecone_instance.extract_and_embed_pages(file)
-    uploaded_data_table.insert({"roomCode": room_code, **file_data})
-    new_message = {
-        "id": uuid.uuid4().hex,
-        "content": f"{uploaded_data_table.search(Query().roomCode == room_code)['filename']} vectors are embedded.",
-        "sender": "System",
-        "timestamp": get_current_ist_datetime(),
-        "roomCode": room_code
-    }
-    socketio.emit('chat_message', new_message, room=room_code)
-    
-    return jsonify({"success": True})
+    if pinecone_instance.extract_and_embed_pages(file):
+        uploaded_data_table.insert({"roomCode": room_code, **file_data})
+        new_message = {
+            "id": uuid.uuid4().hex,
+            "content": f"{uploaded_data_table.search(Query().roomCode == room_code)['filename']} vectors are embedded.",
+            "sender": "System",
+            "timestamp": get_current_ist_datetime(),
+            "roomCode": room_code
+        }
+        socketio.emit('chat_message', new_message, room=room_code)
+
+        return jsonify({"success": True})
+    else: 
+        return jsonify({"success": False})
 
 
 @app.route('/api/export-room', methods=['GET'])

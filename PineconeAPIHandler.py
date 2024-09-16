@@ -34,11 +34,11 @@ class VectorDBProcessor:
                 existing_indexes = self.pc.list_indexes()
                 if self.index_name in existing_indexes:
                     print(f"Index '{self.index_name}' already exists.")
-                    self.pc.Index(self.index_name)
+                    self.index = self.pc.Index(self.index_name)
                     return True
                 print(f"Index '{self.index_name}' does not exist. Creating it...")
                 self.pc.create_index(name=self.index_name, dimension=1536)
-                self.pc.Index(self.index_name)
+                self.index = self.pc.Index(self.index_name)
                 print(f"Index '{self.index_name}' created successfully.")
                 return True
             except Exception as e:
@@ -57,14 +57,16 @@ class VectorDBProcessor:
 
     def extract_and_embed_pages(self, file):
         if not file.filename.lower().endswith('.pdf'):
-            raise ValueError("File must be a PDF")
-        
-        pdf_content = io.BytesIO(file.read())
-        loader = PyPDFLoader(pdf_content)
-        pages = loader.load_and_split()
-        self.check_and_create_index()
-        for page in pages:
-            self.vectorize_and_upload(file.filename, page.page_content)
+            return False
+        try:
+            pdf_content = io.BytesIO(file.read())
+            loader = PyPDFLoader(pdf_content)
+            pages = loader.load_and_split()
+            self.check_and_create_index()
+            for page in pages:
+                self.vectorize_and_upload(file.filename, page.page_content)
+        except:
+            return False
         return True
 
     def vectorize_and_upload(self, pdf_name, page_content):
