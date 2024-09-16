@@ -7,7 +7,7 @@ class CommandProcessor:
             'help': self.handle_help,
             'listfiles': self.handle_files,
             'search': self.handle_search,
-            'stormAnalyze': self.handle_storm_analyze
+            'stormanalyze': self.handle_storm_analyze
         }
         self.gemini_instance = instance_tuple[0]
         self.pinecone_instance = instance_tuple[1]
