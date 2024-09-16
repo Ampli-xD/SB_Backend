@@ -59,12 +59,11 @@ class CommandProcessor:
     def handle_search(self, content):
         vectordb = self.pinecone_instance
         results = vectordb.query_vectordb(content)
-        formatted_content = """<table><thead>
-        <tr><th>Score</th><th>Content</th><th>ID</th><th>Filename</th></tr>
-        """
+        formatted_content=""
+        formatted_content += "<table><thead><tr><th>Score</th><th>Content</th><th>ID</th><th>Filename</th></tr>"
         for score, id, filename, chunk in results:
-            formatted_content+=f"""<tr><td>{score}</td><td>{chunk}</td><td>{id}</td><td>{filename}</td></tr>"""
-        formatted_content+="""</thead></table>"""
+            formatted_content+=f"<tr><td>{score}</td><td>{chunk}</td><td>{id}</td><td>{filename}</td></tr>"
+        formatted_content+="</thead></table>"
         return results
     
     def handle_storm_analyze(self, content):
