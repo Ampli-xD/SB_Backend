@@ -14,7 +14,8 @@ class GenAiProcessor:
         """Verify the API key."""
         try:
             genai.configure(api_key=api_key)
-            genai.GenerativeModel(model_name='models/gemini-1.5-pro')
+            model = genai.GenerativeModel(model_name='models/gemini-1.5-pro')
+            model.start_chat(enable_automatic_function_calling=True)
             return True
         except Exception as e:
             return False

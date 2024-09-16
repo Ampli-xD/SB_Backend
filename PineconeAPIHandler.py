@@ -56,8 +56,6 @@ class VectorDBProcessor:
             return False
 
     def extract_and_embed_pages(self, file):
-        if not file.filename.lower().endswith('.pdf'):
-            return False
         try:
             pdf_content = io.BytesIO(file.read())
             loader = PyPDFLoader(pdf_content)

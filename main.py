@@ -134,14 +134,15 @@ def upload_file():
     
     if not file:
         return jsonify({"success": False, "message": "No file provided"}), 400
-    
-    file_data = {
-        "id": generate_alphanumeric_string(),
-        "filename": file.filename
-    }
+    if not file.filename.lower().endswith('.pdf'):
+            return jsonify({"message": "Only PDFs are accepted for now"}), 400
     pinecone_instance = room_instances[room_code]['pinecone_instance']
     
     if pinecone_instance.extract_and_embed_pages(file):
+        file_data = {
+        "id": generate_alphanumeric_string(),
+        "filename": file.filename
+        }
         uploaded_data_table.insert({"roomCode": room_code, **file_data})
         new_message = {
             "id": uuid.uuid4().hex,
@@ -153,7 +154,7 @@ def upload_file():
         socketio.emit('chat_message', new_message, room=room_code)
         return jsonify({"success": True})
     else: 
-        return jsonify({"success": False})
+        return jsonify({"message": "failed to embed"}), 404
 
 
 @app.route('/api/export-room', methods=['GET'])
