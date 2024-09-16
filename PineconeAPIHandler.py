@@ -62,26 +62,39 @@ class VectorDBProcessor:
             pdf_content = io.BytesIO(file.read())
             loader = PyPDFLoader(pdf_content)
             pages = loader.load_and_split()
-            self.check_and_create_index()
+
+            # Split pages into smaller chunks (4-5 lines each)
+            small_chunks = []
             for page in pages:
-                self.vectorize_and_upload(file.filename, page.page_content)
-        except:
+                page_content = page.page_content.split('\n')
+                small_chunks.extend(
+                    ['\n'.join(page_content[i:i+5]) for i in range(0, len(page_content), 5)]
+                )
+            
+            self.check_and_create_index()
+
+            for chunk in small_chunks:
+                self.vectorize_and_upload(file.filename, chunk)
+        except Exception as e:
+            print(f"Error processing file: {e}")
             return False
         return True
 
-    def vectorize_and_upload(self, pdf_name, page_content):
-        embedding = self.embedding_model.embed_query(page_content)
+    def vectorize_and_upload(self, pdf_name, chunk_content):
+        embedding = self.embedding_model.embed_query(chunk_content)
         metadata = {'source': pdf_name}
         self.index.upsert([(pdf_name, embedding, metadata)])
         print(f"Uploaded and Embedded {pdf_name}")
 
-    def query_pinecone(self, query, top_k=10):
+    def query_vectordb(self, query, top_k=10):
         query_embedding = self.embedding_model.embed_query(query)
         results = self.index.query(vector=query_embedding, top_k=top_k)
-        
         matches = results['matches']
+        
+        # Return results sorted by score in descending order
         sorted_results = sorted(
-            [(res['score'], res['id']) for res in matches],
+            [(res['score'], res['id'], res['metadata']['source']) for res in matches],
             reverse=True
         )
-        return {id: score for score, id in sorted_results}
+        
+        return sorted_results

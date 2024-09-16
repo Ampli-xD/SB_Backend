@@ -47,8 +47,15 @@ def create_room():
     gemini_key = data.get('geminiKey')
     pinecone_key = data.get('pineconeKey')
     
-    if not validate_keys(gemini_key, pinecone_key):
-        return jsonify({"message": "Invalid Gemini or Pinecone key"}), 400
+    res = validate_keys(gemini_key, pinecone_key)
+    if res:
+        pass
+    elif res=="pine":
+        return jsonify({"message": "Invalid Pinecone key"}), 400
+    elif res=="gemi":
+        return jsonify({"message": "Invalid Gemini key"}), 400
+    else:
+        return jsonify({"message": "Try again in sometime"}), 400
 
     gemini_instance = GenAiProcessor(gemini_key)
     pinecone_instance = VectorDBProcessor((pinecone_key, gemini_key))
@@ -289,9 +296,13 @@ def on_ping_server(ping):
 
 
 def validate_keys(gemini_key, pinecone_key):
-    gem = GenAiProcessor(gemini_key).verifier(gemini_key)
-    pin = VectorDBProcessor((pinecone_key, gemini_key)).verifier(pinecone_key)
-    return gem and pin
+    if GenAiProcessor(gemini_key).verifier(gemini_key):
+        if VectorDBProcessor((pinecone_key, gemini_key)).verifier(pinecone_key):
+            return True
+        else:
+            return "pine"
+    else:
+        return "gemi"
 
 def get_current_ist_datetime():
     ist = pytz.timezone('Asia/Kolkata')

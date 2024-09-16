@@ -57,8 +57,10 @@ class CommandProcessor:
         return f"Files command received with content: {formatted_content}"
     
     def handle_search(self, content):
-        formatted_content = self.html_complexer.convert_to_html(content)
-        return f"Search command received with content: {formatted_content}"
+        vectordb = self.pinecone_instance
+        results = vectordb.query_vectordb(content,top_k=5)
+        formatted_content = self.html_complexer.convert_to_html(results)
+        return formatted_content
     
     def handle_storm_analyze(self, content):
         formatted_content = self.html_complexer.convert_to_html(content)
