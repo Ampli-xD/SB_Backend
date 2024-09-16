@@ -102,8 +102,8 @@ class VectorDBProcessor:
         
         # Return results sorted by score in descending order
         sorted_results = sorted(
-            [(res['score'], res['id'], res['metadata']['filename'], res['chunk']) for res in matches],
+            [(res['score'], res['id'], res['metadata']['filename'], res['chunk']) for res in matches] if matches else [],
             reverse=True
         )
         
-        return matches
+        return sorted_results
