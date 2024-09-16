@@ -166,12 +166,16 @@ def get_name():
 
     
 
-@app.route('/api/messages/', methods=['POST'])
+@app.route('/api/messages', methods=['POST'])
 def get_messages():
     data = request.json
     room_code = data.get('roomCode')
+    if not room_code:
+        return jsonify({"message": "roomCode is required"}), 400
+    
     room_messages = messages_table.search(Query().roomCode == room_code)
     return jsonify([msg for msg in room_messages])
+
 
 
 # @app.route('/api/online-users', methods=['POST'])
@@ -227,26 +231,35 @@ def upload_file():
         return jsonify({"message": str(e)}), 500
 
 
-@app.route('/api/export-room', methods=['GET'])
+@app.route('/api/export-room', methods=['POST'])
 def export_room():
-    room_code = request.args.get('roomCode')
+    data = request.json
+    room_code = data.get('roomCode')
+    if not room_code:
+        return jsonify({"message": "roomCode is required"}), 400
+
     room = rooms_table.get(Query().code == room_code)
     if not room:
         return jsonify({"message": "Room not found"}), 404
+
     messages = messages_table.search(Query().roomCode == room_code)
     uploaded_data = uploaded_data_table.search(Query().roomCode == room_code)
     online_users = online_users_table.get(Query().roomCode == room_code)
+    
     room_data = {
         "room": room,
         "messages": messages,
         "uploaded_data": uploaded_data,
         "online_users": online_users['users'] if online_users else []
     }
+    
     json_data = json.dumps(room_data, indent=4)
     export_file_path = os.path.join(TEMP_FOLDER, f'{room_code}_export.json')
     with open(export_file_path, 'w') as f:
         f.write(json_data)
+    
     return send_file(export_file_path, as_attachment=True, attachment_filename=f'{room_code}_export.json')
+
 
 
 
