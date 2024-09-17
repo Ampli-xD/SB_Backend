@@ -1,26 +1,44 @@
 import uuid
-from flask import Flask, request, jsonify
-from flask_socketio import SocketIO, emit, join_room, leave_room
+import json
+from flask import Flask, request, jsonify, send_file
+from flask_socketio import SocketIO, emit, join_room, leave_room, send  
 from flask_cors import CORS
 from datetime import datetime
+import pytz
+import random
+import string
+from tinydb import TinyDB, Query
+import CommandHandler as CH
+from HtmlComplexer import HTMLComplexer
+from GeminiAPIHandler import GenAiProcessor
+from PineconeAPIHandler import VectorDBProcessor
+import time
+import os
+
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key'
 CORS(app, resources={r"/*": {"origins": "*"}})
 socketio = SocketIO(app, cors_allowed_origins="*", engineio_logger=True)
-# socketio = SocketIO(logger=True, engineio_logger=True)
-# In-memory storage (replace with a database in a production environment)
-rooms = {}
-messages = {}
-online_users = {}
-uploaded_data = {}
-import random
-import string
+
+db = TinyDB('db.json')  # You can use different JSON files for different collections
+rooms_table = db.table('rooms')
+messages_table = db.table('messages')
+uploaded_data_table = db.table('uploaded_data')
+online_users_table = db.table('online_users')
+room_instances = {}
+Pinger = False
+TEMP_FOLDER = 'TempFile'
+os.makedirs(TEMP_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = TEMP_FOLDER
+
+
 
 def generate_alphanumeric_string():
     characters = string.ascii_lowercase + string.digits
     def generate_group():
-        return ''.join(random.choices(characters, k=3))
+        return ''.join(random.choices(characters, k=2))
     group1 = generate_group()
     group2 = generate_group()
     group3 = generate_group()
@@ -28,122 +46,222 @@ def generate_alphanumeric_string():
 
 @app.route('/api/rooms/create', methods=['POST'])
 def create_room():
-    # Receives: { roomName: string, geminiKey: string, pineconeKey: string }
-    # Returns: { roomCode: string } or { message: string } on error
     data = request.json
+    user_name = data.get('userName')
     room_name = data.get('roomName')
     gemini_key = data.get('geminiKey')
     pinecone_key = data.get('pineconeKey')
     
-    # Validate keys (implement your validation logic here)
-    if not validate_keys(gemini_key, pinecone_key):
-        return jsonify({"message": "Invalid Gemini or Pinecone key"}), 400
+    res = validate_keys(gemini_key, pinecone_key)
+    if res:
+        pass
+    elif res=="pine":
+        return jsonify({"message": "Invalid Pinecone key"}), 400
+    elif res=="gemi":
+        return jsonify({"message": "Invalid Gemini key"}), 400
+    else:
+        return jsonify({"message": "Try again in sometime"}), 400
 
+    gemini_instance = GenAiProcessor(gemini_key)
+    pinecone_instance = VectorDBProcessor((pinecone_key, gemini_key))
     room_code = generate_alphanumeric_string()
     print(room_code, room_name, gemini_key, pinecone_key)
-    rooms[room_code] = {"name": room_name, "gemini_key": gemini_key, "pinecone_key": pinecone_key}
+    print(f"Room has been created by: {user_name}")
+
+    creation_time_utc = get_current_ist_datetime()
+    
+    rooms_table.insert({
+        "code": room_code,
+        "name": room_name,
+        "gemini_key": gemini_key,
+        "pinecone_key": pinecone_key,
+        "users": [user_name],
+        "creator": user_name,
+        "creation_time_utc": creation_time_utc
+    })
+    
+    room_instances[room_code] = {
+        'gemini_instance': gemini_instance,
+        'pinecone_instance': pinecone_instance
+    }    
+    
     return jsonify({"roomCode": room_code})
+
 
 @app.route('/api/rooms/join', methods=['POST'])
 def join_room_api():
-    # Receives: { roomCode: string }
-    # Returns: { roomName: string } or { message: string } on error
     data = request.json
+    user_name = data.get('userName')
     room_code = data.get('roomCode')
 
-    if room_code not in rooms:
+    room = rooms_table.get(Query().code == room_code)
+    if not room:
         return jsonify({"message": "Room not found"}), 404
+    rooms_table.update({"users": room["users"] + [user_name]}, Query().code == room_code)
+    return jsonify({"roomName": room["name"]})
 
-    return jsonify({"roomName": rooms[room_code]["name"]})
+@app.route('/api/rooms/import', methods=['POST'])
+def import_room_api():
+    if 'file' not in request.files:
+        return jsonify({"message": "No file provided"}), 400
 
-@app.route('/api/messages/', methods=['GET'])
-def get_messages():
-    # Receives: roomCode as query parameter
-    # Returns: [{ id: string, content: string, sender: string, timestamp: string }]
-    room_code = request.args.get('roomCode')
-    return jsonify(messages.get(room_code, []))
+    file = request.files['file']
+    if not file.filename.lower().endswith('.json'):
+        return jsonify({"message": "Only JSON files are accepted"}), 400
 
-@app.route('/api/send-message', methods=['POST'])
-def send_message():
-    # Receives: { roomCode: string, content: string }
-    # Returns: { success: boolean }
+    try:
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+        file.save(file_path)
+
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+
+        required_keys = ['room', 'messages', 'uploaded_data', 'online_users']
+        if not all(key in data for key in required_keys):
+            return jsonify({"message": "Invalid JSON format"}), 400
+
+        room = data['room']
+        messages = data['messages']
+        uploaded_data = data['uploaded_data']
+        online_users = data['online_users']
+
+        if not all(key in room for key in ['code', 'name', 'gemini_key', 'pinecone_key', 'users', 'creator', 'creation_time_utc']):
+            return jsonify({"message": "Invalid room data"}), 400
+
+        existing_room = rooms_table.get(Query().code == room['code'])
+        if existing_room:
+            rooms_table.update(room, Query().code == room['code'])
+        else:
+            rooms_table.insert(room)
+
+        for message in messages:
+            messages_table.insert(message)
+
+        for data_item in uploaded_data:
+            uploaded_data_table.insert(data_item)
+
+        online_users_data = {"roomCode": room['code'], "users": online_users}
+        existing_online_users = online_users_table.get(Query().roomCode == room['code'])
+        if existing_online_users:
+            online_users_table.update(online_users_data, Query().roomCode == room['code'])
+        else:
+            online_users_table.insert(online_users_data)
+
+        os.remove(file_path)
+        return jsonify({"message": "Room imported and users joined successfully"}), 200
+
+    except json.JSONDecodeError:
+        return jsonify({"message": "Invalid JSON format"}), 400
+    except Exception as e:
+        print(f"Error importing room: {e}")
+        return jsonify({"message": "An unexpected error occurred"}), 500
+
+
+@app.route('/api/rooms/name', methods=['POST'])
+def get_name():
     data = request.json
     room_code = data.get('roomCode')
-    content = data.get('content')
-    
-    if room_code not in messages:
-        messages[room_code] = []
-    
-    new_message = {
-        "id": generate_alphanumeric_string(),
-        "content": content,
-        "sender": "User",  # Replace with actual user identification
-        "timestamp": datetime.now().isoformat()
-    }
-    messages[room_code].append(new_message)
-    
-    # Emit the new message to all clients in the room
-    socketio.emit('chat_message', new_message, room=room_code)
-    
-    return jsonify({"success": True})
+    room = rooms_table.get(Query().code == room_code)
+    return jsonify(room['name'])
 
-@app.route('/api/online-users', methods=['GET'])
-def get_online_users():
-    print("online user requested")
-    # Receives: roomCode as query parameter
-    # Returns: [{ id: string, name: string }]
-    room_code = request.args.get('roomCode')
-    return jsonify(online_users.get(room_code, []))
+    
 
-@app.route('/api/uploaded-data', methods=['GET'])
-def get_uploaded_data():
-    # Receives: roomCode as query parameter
-    # Returns: [{ id: string, filename: string }]
-    room_code = request.args.get('roomCode')
-    return jsonify(uploaded_data.get(room_code, []))
+@app.route('/api/messages', methods=['POST'])
+def get_messages():
+    data = request.json
+    room_code = data.get('roomCode')
+    if not room_code:
+        return jsonify({"message": "roomCode is required"}), 400
+    
+    room_messages = messages_table.search(Query().roomCode == room_code)
+    return jsonify([msg for msg in room_messages])
+
+
+
+# @app.route('/api/online-users', methods=['POST'])
+# def get_online_users():
+#     data = request.json
+#     print("online user requested")
+#     room_code = data.get('roomCode')
+#     users = online_users_table.search(Query().roomCode == room_code)
+#     return jsonify([user for user in users])
+
+# @app.route('/api/uploaded-data', methods=['GET'])
+# def get_uploaded_data():
+#     room_code = request.args.get('roomCode')
+#     data = uploaded_data_table.search(Query().roomCode == room_code)
+#     return jsonify(data)
+
 
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
-    # Receives: file in form-data, roomCode in form-data
-    # Returns: { success: boolean }
     room_code = request.form.get('roomCode')
     file = request.files.get('file')
-    
     if not file:
         return jsonify({"success": False, "message": "No file provided"}), 400
+    if not file.filename.lower().endswith('.pdf'):
+        return jsonify({"message": "Only PDFs are accepted for now"}), 400
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+    file.save(file_path)
     
-    if room_code not in uploaded_data:
-        uploaded_data[room_code] = []
+    pinecone_instance = room_instances[room_code]['pinecone_instance']
     
-    file_data = {
-        "id": generate_alphanumeric_string(),
-        "filename": file.filename
-    }
-    uploaded_data[room_code].append(file_data)
-    
-    # Save the file (implement your file saving logic here)
-    # file.save(os.path.join(upload_folder, file.filename))
-    
-    # Notify all clients in the room about the new file
-    socketio.emit('uploaded_data_update', uploaded_data[room_code], room=room_code)
-    
-    return jsonify({"success": True})
+    try:
+        if pinecone_instance.extract_and_embed_pages(file_path):
+            file_data = {
+                "id": generate_alphanumeric_string(),
+                "filename": file.filename
+            }
+            uploaded_data_table.insert({"roomCode": room_code, **file_data})
+            new_message = {
+                "id": uuid.uuid4().hex,
+                "content": f"{uploaded_data_table.search(Query().roomCode == room_code)['filename']} vectors are embedded.",
+                "sender": "System",
+                "timestamp": get_current_ist_datetime(),
+                "roomCode": room_code
+            }
+            socketio.emit('chat_message', new_message, room=room_code)
+            os.remove(file_path)
+            return jsonify({"success": True, "message": "File embedded successfully"}), 200
+        else:
+            os.remove(file_path)
+            return jsonify({"message": "Failed to embed file"}), 404
+    except Exception as e:
+        os.remove(file_path)
+        return jsonify({"message": str(e)}), 500
 
-@app.route('/api/export-room', methods=['GET'])
+
+@app.route('/api/export-room', methods=['POST'])
 def export_room():
-    # Receives: roomCode as query parameter
-    # Returns: JSON file with room data
-    room_code = request.args.get('roomCode')
-    if room_code not in rooms:
+    data = request.json
+    room_code = data.get('roomCode')
+    if not room_code:
+        return jsonify({"message": "roomCode is required"}), 400
+
+    room = rooms_table.get(Query().code == room_code)
+    if not room:
         return jsonify({"message": "Room not found"}), 404
+
+    messages = messages_table.search(Query().roomCode == room_code)
+    uploaded_data = uploaded_data_table.search(Query().roomCode == room_code)
+    online_users = online_users_table.get(Query().roomCode == room_code)
     
     room_data = {
-        "room": rooms[room_code],
-        "messages": messages.get(room_code, []),
-        "uploaded_data": uploaded_data.get(room_code, [])
+        "room": room,
+        "messages": messages,
+        "uploaded_data": uploaded_data,
+        "online_users": online_users['users'] if online_users else []
     }
     
-    return jsonify(room_data)
+    json_data = json.dumps(room_data, indent=4)
+    export_file_path = os.path.join(TEMP_FOLDER, f'{room_code}_export.json')
+    with open(export_file_path, 'w') as f:
+        f.write(json_data)
+    
+    return send_file(export_file_path, as_attachment=True)
+
+
+
 
 @socketio.on('chat_message')
 def handle_chat_message(data):
@@ -151,59 +269,107 @@ def handle_chat_message(data):
     
     room_code = data.get('roomCode')
     content = data.get('content')
+    userName = data.get('userName')
 
     if not room_code or not content:
         print('Error: Missing roomCode or content')
         return
-
-    # Add message to the room's message list
-    if room_code not in messages:
-        messages[room_code] = []
-
+    Htmlcomplex = HTMLComplexer()
     new_message = {
         "id": uuid.uuid4().hex,
-        "content": content,
-        "sender": "User",  # You can replace this with actual user identification
-        "timestamp": datetime.now().isoformat()
+        "content": Htmlcomplex.convert_to_html(content),
+        "sender": userName,
+        "timestamp": get_current_ist_datetime(),
+        "roomCode": room_code
     }
     
-    messages[room_code].append(new_message)
+    messages_table.insert(new_message)
 
-    # Emit the new message to all clients in the room
     print(f'Emitting message to room {room_code}:', new_message)
     emit('chat_message', new_message, room=room_code)
+    global Pinger
+    if new_message['content']=="!pingStart":
+        Pinger = True
+        emit('ping_server',  {'incrementor' : 1, 'message' : 'Pinging!!!'})
+    elif new_message['content']=="!pingStop":
+        Pinger =False
+    
+    if new_message['content'].startswith('!') and new_message['content']!="!pingStart" and new_message['content']!="!pingStop":
+        room = rooms_table.get(Query().code == room_code)
+        messages = messages_table.search(Query().roomCode == room_code)
+        uploaded_data = uploaded_data_table.search(Query().roomCode == room_code)
+        online_users = online_users_table.get(Query().roomCode == room_code)
+
+        command_data = {
+            'room': room,
+            'messages': messages,
+            'uploaded_data': uploaded_data,
+            'online_users': online_users if online_users else {}
+        }
+        gemini_instance = room_instances[room_code]['gemini_instance']
+        pinecone_instance = room_instances[room_code]['pinecone_instance']
+        handler = CH.commandHandler(new_message, command_data, (gemini_instance, pinecone_instance))
+        content, commandName= handler.analyzeCommand()
+        new_message = {
+            "id": uuid.uuid4().hex,
+            "content": content,
+            "sender": commandName,
+            "timestamp": get_current_ist_datetime(),
+            "roomCode": room_code
+            }
+        
+        messages_table.insert(new_message)
+        emit('chat_message', new_message, room=room_code)
+
 
 @socketio.on('join_room')
 def on_join_room(data):
-    # Receives: { roomCode: string }
     room_code = data['roomCode']
-    print(f"User {request.sid} joined room: {room_code}")
-    room_code = data['roomCode']
+    user_name = data['userName']
     join_room(room_code)
-    if room_code not in online_users:
-        online_users[room_code] = []
-    user = {"id": request.sid, "name": "User"}  # Replace with actual user name
-    online_users[room_code].append(user)
-    emit('online_users_update', online_users[room_code], room=room_code)
-    emit('update_online_count', len(online_users[room_code]), room=room_code)
+    if not online_users_table.get(Query().roomCode == room_code):
+        online_users_table.insert({"roomCode": room_code, "users": []})
+    new_message = {
+        "id": uuid.uuid4().hex,
+        "content": f"{user_name} has entered the room.",
+        "sender": "System",
+        "timestamp": get_current_ist_datetime(),
+        "roomCode": room_code
+    }
+    emit('chat_message', new_message, to=room_code)
+    user = {"id": request.sid, "name": user_name}  # Replace with actual user name
+    online_users_table.update({"users": online_users_table.get(Query().roomCode == room_code)['users'] + [user]}, Query().roomCode == room_code)
+    # emit('online_users_update', online_users_table.get(Query().roomCode == room_code)['users'], room=room_code)
+    # emit('update_online_count', len(online_users_table.get(Query().roomCode == room_code)['users']), room=room_code)
+
 
 @socketio.on('leave_room')
 def on_leave_room(data):
-    # Receives: { roomCode: string }
     room_code = data['roomCode']
     leave_room(room_code)
-    if room_code in online_users:
-        online_users[room_code] = [user for user in online_users[room_code] if user['id'] != request.sid]
-        emit('online_users_update', online_users[room_code], room=room_code)
-        emit('update_online_count', len(online_users[room_code]), room=room_code)
+    users = online_users_table.get(Query().roomCode == room_code)['users']
+    users = [user for user in users if user['id'] != request.sid]
+    online_users_table.update({"users": users}, Query().roomCode == room_code)
+    # emit('online_users_update', users, room=room_code)
+    # emit('update_online_count', len(users), room=room_code)
+
 
 @socketio.on('disconnect')
 def on_disconnect():
-    for room_code, users in online_users.items():
-        users = [user for user in users if user['id'] != request.sid]
-        online_users[room_code] = users
-        emit('online_users_update', users, room=room_code)
-        emit('update_online_count', len(users), room=room_code)
+    for room_code in online_users_table.all():
+        users = [user for user in room_code['users'] if user['id'] != request.sid]
+        online_users_table.update({"users": users}, Query().roomCode == room_code['roomCode'])
+    for room_code in online_users_table.all():
+        user_name = [user['name'] for user in room_code['users'] if user['id'] == request.sid]
+        new_message = {
+            "id": uuid.uuid4().hex,
+            "content": f"{user_name[0]} has left the room.",
+            "sender": "System",
+            "timestamp": get_current_ist_datetime(),
+            "roomCode": room_code
+        }
+        emit('chat_message', new_message, to=room_code)
+
 
 @socketio.on('user_activity')
 def on_user_activity(data):
@@ -212,8 +378,29 @@ def on_user_activity(data):
     # Implement your room expiry logic here
     pass
 
+@socketio.on('ping_server')
+def on_ping_server(ping):
+    global Pinger
+    while Pinger is True:
+        time.sleep(50)
+        emit('ping_server',  {'incrementor' : ping['incrementor']+1, 'message' : 'Pinging!!!'})
+        
+
+
 def validate_keys(gemini_key, pinecone_key):
-    # Implement your key validation logic here
-    return True  # Placeholder, always returns True
+    if GenAiProcessor(gemini_key).verifier(gemini_key):
+        if VectorDBProcessor((pinecone_key, gemini_key)).verifier(pinecone_key):
+            return True
+        else:
+            return "pine"
+    else:
+        return "gemi"
+
+def get_current_ist_datetime():
+    ist = pytz.timezone('Asia/Kolkata')
+    utc_now = datetime.now(pytz.utc)
+    ist_now = utc_now.astimezone(ist)
+    return ist_now.strftime('%Y-%m-%d %H:%M:%S')
+
 if __name__ == '__main__':
     socketio.run(app, allow_unsafe_werkzeug=True)
